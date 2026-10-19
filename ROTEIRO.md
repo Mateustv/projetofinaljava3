@@ -80,12 +80,9 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [x] Rascunho do event storming documentado com o fluxo de 8 passos, eventos, comandos, atores, políticas e **hotspots**; grupo ainda deve revisar
 - [x] Agregado `Boleto` e VOs definidos conceitualmente (sem classe de domínio implementada nesta etapa)
 - [x] `docs/arquitetura.md` com diagrama de contextos
-- [x] **ADR-002** (bases segregadas), **ADR-003** (corte em 3 serviços) e **ADR-004** (estado inicial — *proposta*, grupo confirma)
+- [x] **ADR-002** (bases segregadas), **ADR-003** (corte em 3 serviços) e **ADR-004** (estado inicial — opção C aceita pelo solicitante; grupo deve ser informado)
 - [x] Código: `boleto-emissor` com `POST /boletos` validando campos essenciais → `202` / `400`; cada serviço com **seu H2**; testes automatizados verdes
-> **Decisão em aberto (hotspot!):** recém-emitido, a consulta precisa achar `AGUARDANDO_REGISTRO`
-> (Sessão 3), mas o `boleto-registro` ainda não gravou nada. Quem guarda o estado inicial?
-> Opções: (a) emissor persiste o aceite e a consulta cai nele no fallback; (b) emissor também publica…
-> Isso vira ADR — é exatamente o tipo de trade-off que a rubrica quer.
+> **Hotspot decidido para o MVP (ADR-004):** a consulta tenta o registro; se ainda não encontrou o boleto, busca o aceite no emissor e devolve `AGUARDANDO_REGISTRO`. A opção C foi aceita pelo solicitante; falta compartilhar com o grupo. A implementação entra em E2/E3.
 
 ## E2 — Idempotência e consistência (Aula 2) — *critério 3*
 **Referência:** `aula-02/ESTADO.md`, plano aula-02 §4–§7

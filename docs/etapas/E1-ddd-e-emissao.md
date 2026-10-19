@@ -1,6 +1,6 @@
 # E1 — DDD, bounded contexts e emissão validada
 
-**Status:** primeira implementação e documentação concluídas · `mvn clean verify` passou (17 testes, sem falhas). Testes manuais HTTP e revisão das decisões pelo grupo continuam pendentes (ver [`../validacao-pendente.md`](../validacao-pendente.md)).
+**Status:** primeira implementação e documentação concluídas · `mvn clean verify` passou (17 testes, sem falhas). Testes manuais HTTP continuam pendentes (ver [`../validacao-pendente.md`](../validacao-pendente.md)). O solicitante aceitou a opção C do ADR-004; falta compartilhar com o grupo.
 **Referência no gabarito:** `aula-01` · plano de aula 1 §3–§7 · **ADRs:** [002](../adr/ADR-002-bases-segregadas.md), [003](../adr/ADR-003-corte-tres-servicos.md), [004](../adr/ADR-004-fonte-do-estado-inicial.md)
 
 ## Objetivo
@@ -104,6 +104,6 @@ Critério 1 (decomposição: ADR-002/003, arquitetura) e 7 (ADRs com alternativa
 ## Para vocês discutirem em grupo
 O event storming e as decisões abaixo são um rascunho documentado para orientar o grupo, não substituem a discussão conjunta.
 
-1. Concordam com a **opção C** do ADR-004? Que riscos veem?
+1. A opção C do ADR-004 foi aceita pelo solicitante. O grupo identifica algum risco ou motivo para rever a decisão?
 2. `Boleto` e `Pessoa`: por que um é entidade e o outro VO? E se `Pessoa` precisasse de histórico?
 3. Por que a validação síncrona não consulta a registradora?

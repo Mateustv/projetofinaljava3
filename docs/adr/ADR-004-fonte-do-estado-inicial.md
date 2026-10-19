@@ -3,7 +3,7 @@
 ## Contexto
 Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao menos o estado inicial. Não devemos devolver 404 para algo aceito."* Mas o `boleto-registro` (dono do estado do título) só passa a conhecer o boleto **depois** de consumir a fila. Entre o 202 e o consumo existe uma **janela** em que só o `boleto-emissor` sabe que o boleto existe.
 
-> **Esta é a decisão mais importante da E1: ela afeta cache, consulta e eventos. O grupo deve revisá-la e confirmar.**
+> **Esta é uma decisão importante da E1: ela afeta consulta, cache e eventos. O solicitante aceitou a opção C em 19/10/2026; compartilhar com o grupo para ciência e eventual ratificação.**
 
 ## Opções
 - **A — Consulta lê só do registro, e o registro cria a linha no recebimento da mensagem.** Ainda deixa a janela (mensagem na fila, não consumida) → 404 para algo aceito. **Não atende.**
@@ -11,8 +11,8 @@ Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao men
 - **C — Fallback em duas fontes:** consulta tenta o **registro**; se 404, tenta o **aceite no emissor** (endpoint interno de leitura) e devolve `AGUARDANDO_REGISTRO`; só então 404. Mantém cada serviço dono do seu dado (emissor = aceite; registro = título). Custo: na janela, 2 chamadas e a consulta conhece 2 fontes.
 - **D — Read model próprio da consulta (CQRS)**, alimentado por eventos (`EmissaoAceita`, `BoletoRegistrado`, `RegistroRejeitado`). Maior desacoplamento e leitura mais rápida, mas exige eventos/outbox (E4+ e opcionais) e consistência eventual do próprio read model.
 
-## Decisão (proposta)
-**Opção C para o MVP**, com **D registrada como evolução** quando houver eventos/outbox. Em C, o cache usa **TTL curto (30 s)** para `AGUARDANDO_REGISTRO` para não prender o estado transitório (detalhe em ADR da E3).
+## Decisão
+**Opção C para o MVP**, aceita pelo solicitante em 19/10/2026. A opção D fica registrada como evolução quando houver eventos/outbox. Em C, o cache usará **TTL curto (30 s)** para `AGUARDANDO_REGISTRO`, para não prender o estado transitório (detalhe em ADR da E3).
 
 ## Consequências
 - A consulta não tem base própria no MVP; precisa de dois clientes REST internos (registro, emissor).
@@ -20,4 +20,4 @@ Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao men
 - Falha técnica em qualquer fonte → 503, **nunca** 404 (sessão 3).
 
 ## Status
-**Proposta** — a confirmar pelo grupo.
+**Aceita pelo solicitante; pendente de ciência/ratificação do grupo.** A implementação é futura: o emissor precisa persistir o aceite (E2), e a consulta e o fallback serão implementados nas etapas de consulta (E3).
