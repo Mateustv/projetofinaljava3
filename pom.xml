@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- POM PAI (agregador): define versões e perfis UMA vez; os módulos herdam. -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>br.com.caixa.cobranca</groupId>
+    <artifactId>central-cobranca</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Central de Cobranca e Boletos (projeto final BE-JV-010)</name>
+
+    <!-- Ordem importa: shared-contracts primeiro, pois os servicos dependem dele. -->
+    <modules>
+        <module>shared-contracts</module>
+        <module>boleto-emissor</module>
+        <module>boleto-registro</module>
+        <module>boleto-consulta</module>
+    </modules>
+
+    <properties>
+        <!-- Java 17: e o JDK instalado nas maquinas do grupo (o gabarito PIX usa 21; ver ADR-001). -->
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Versao do shared-contracts definida aqui; modulos declaram sem versao. -->
+            <dependency>
+                <groupId>br.com.caixa.cobranca</groupId>
+                <artifactId>shared-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Dependencias comuns a TODOS os modulos (inclusive shared-contracts, por isso so teste). -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!--
+      PERFIS DE EXECUCAO (exigidos pelo brief). Na E0 estao vazios de proposito:
+      cada etapa adiciona aqui as dependencias de infraestrutura que passa a usar
+      (E3 cache, E4/E5 fila). Assim so entra no projeto o que ja foi explicado.
+    -->
+    <profiles>
+        <!-- Plano A: infraestrutura real via Docker (referencia; nao usado pela turma). -->
+        <profile>
+            <id>plano-a-docker</id>
+        </profile>
+
+        <!-- Plano B: pura-JVM, sem Docker. PADRAO do grupo. -->
+        <profile>
+            <id>plano-b-jvm</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+
+        <!-- Plano C: conceitual, event bus em memoria (fallback se faltar artefato no Nexus). -->
+        <profile>
+            <id>plano-c-conceitual</id>
+        </profile>
+    </profiles>
+</project>

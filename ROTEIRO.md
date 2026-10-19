@@ -80,7 +80,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Event storming com o fluxo de 8 passos do docx: eventos (`EmissaoAceita`, `BoletoRegistrado`, `RegistroRejeitado`), comandos, atores, políticas, **hotspots**
 - [ ] Definir o agregado `Boleto` (entidade) e VOs (`Valor`, `Pagador`, `Convenio`…)
 - [ ] `docs/arquitetura.md` com diagrama de contextos
-- [ ] **ADR-001** (bases segregadas), **ADR-002** (por que 3 serviços e não 1 — o "corte")
+- [ ] **ADR-002** (bases segregadas), **ADR-003** (por que 3 serviços e não 1 — o "corte")
 - [ ] Código: `boleto-emissor` com `POST /boletos` validando campos essenciais → `202` / `400`; cada serviço com **seu H2**
 > **Decisão em aberto (hotspot!):** recém-emitido, a consulta precisa achar `AGUARDANDO_REGISTRO`
 > (Sessão 3), mas o `boleto-registro` ainda não gravou nada. Quem guarda o estado inicial?
@@ -93,7 +93,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 **Fazer:**
 - [ ] Emissor persiste o aceite (H2 próprio) com **chave única (convênio + nº controle)**
 - [ ] Reenvio igual → mesma resposta (202, mesmo id); mesma chave + conteúdo diferente → **409**
-- [ ] ADR-003: SAGA/outbox — o que vamos (ou não) implementar e por quê
+- [ ] ADR-004: SAGA/outbox — o que vamos (ou não) implementar e por quê
 - [ ] Teste: enviar 2× a mesma emissão → 1 só registro
 > O gabarito faz aqui uma SAGA **síncrona** (emissor→REST→gravador) que a Aula 4 **substitui** por fila.
 > Recomendação: **não implemente a versão síncrona**; pegue só a idempotência + compensação como conceito.
@@ -106,7 +106,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Caffeine (Plano B) atrás de `@Cacheable`
 - [ ] **Diferença do PIX:** estado muda ⇒ política: **TTL curto para estados transitórios**, longo para finais; não cachear 404
 - [ ] Resposta só expõe linha digitável/código de barras se `REGISTRADO` (Sessão 3)
-- [ ] ADR-004 estratégia de cache (alternativas: TTL só, invalidação por evento, write-through)
+- [ ] ADR-005 estratégia de cache (alternativas: TTL só, invalidação por evento, write-through)
 - [ ] Teste: 2ª consulta não chega na fonte; falha técnica ≠ 404
 
 ## E4 — Comunicação assíncrona (Aula 5) — *critério 2*
@@ -128,7 +128,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Falha **permanente** (mensagem inválida) → DLQ com listener que loga **sem vazar dados** (Sessão 5)
 - [ ] Rejeição de negócio → estado `REJEITADO` (não DLQ)
 - [ ] Prova: mensagem envenenada → 3 tentativas → DLQ; mensagem boa segue
-- [ ] ADR-005 retry/DLQ
+- [ ] ADR-006 retry/DLQ
 
 ## E6 — Fechamento da base
 - [ ] `README.md` (tema, arquitetura, como rodar, perfil)
