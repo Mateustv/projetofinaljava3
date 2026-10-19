@@ -12,9 +12,9 @@
 
     <artifactId>boleto-consulta</artifactId>
     <name>boleto-consulta</name>
-    <description>Bounded context CONSULTA: leitura por identificador (cache-aside entra na E3).</description>
+    <description>Bounded context CONSULTA: leitura por identificador com cache-aside e fallback.</description>
 
-    <!-- Sem banco proprio por enquanto: a fonte da consulta e decisao em aberto (ADR na E1). -->
+    <!-- Sem banco proprio no MVP: a consulta usa os contextos de registro e emissao (ADR-004). -->
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -23,6 +23,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
         </dependency>
         <dependency>
             <groupId>br.com.caixa.cobranca</groupId>

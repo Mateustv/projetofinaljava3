@@ -3,7 +3,7 @@
 ## Contexto
 Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao menos o estado inicial. Não devemos devolver 404 para algo aceito."* Mas o `boleto-registro` (dono do estado do título) só passa a conhecer o boleto **depois** de consumir a fila. Entre o 202 e o consumo existe uma **janela** em que só o `boleto-emissor` sabe que o boleto existe.
 
-> **Esta é uma decisão importante da E1: ela afeta consulta, cache e eventos. O solicitante aceitou a opção C em 19/10/2026; compartilhar com o grupo para ciência e eventual ratificação.**
+> **Esta é uma decisão importante da E1: ela afeta consulta, cache e eventos. O solicitante informou em 19/10/2026 que a opção C foi discutida e aceita pelo grupo.**
 
 ## Opções
 - **A — Consulta lê só do registro, e o registro cria a linha no recebimento da mensagem.** Ainda deixa a janela (mensagem na fila, não consumida) → 404 para algo aceito. **Não atende.**
@@ -20,4 +20,4 @@ Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao men
 - Falha técnica em qualquer fonte → 503, **nunca** 404 (sessão 3).
 
 ## Status
-**Aceita pelo solicitante; pendente de ciência/ratificação do grupo.** A implementação é futura: o emissor precisa persistir o aceite (E2), e a consulta e o fallback serão implementados nas etapas de consulta (E3).
+**Aceita pelo grupo (conforme confirmação do solicitante) e implementada no fluxo E2/E3.** O emissor persiste o aceite e fornece leitura interna desde a E2; a consulta executa o fallback nesta E3.

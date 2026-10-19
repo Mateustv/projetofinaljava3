@@ -70,7 +70,7 @@ $bodyInvalido = $body.Replace('"convenio":"123456"', '"convenio":"1"').Replace('
 curl.exe -i -X POST http://localhost:8081/boletos -H "Content-Type: application/json" --data-binary $bodyInvalido
 ```
 
-> Nota histórica da E1: naquele momento o POST ainda não persistia o aceite. A persistência e a leitura interna foram adicionadas na E2; o fallback completo, passando pelo serviço de consulta, continua para E3.
+> Nota histórica da E1: naquele momento o POST ainda não persistia o aceite. A persistência e leitura interna foram adicionadas na E2; o fluxo de consulta com fallback foi adicionado na E3.
 
 ## Validação da E2
 
@@ -99,5 +99,26 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 | ----- | ------- | --------- |
 | 19/10 | E0 | Java 17.0.12/Maven 3.9.10; build e 17 testes aprovados; health dos 3 serviços HTTP 200. |
 | 19/10 | E1 | 15 testes do emissor aprovados; POST válido 202, POST inválido 400 e JSON malformado 400. |
-| 19/10 | ADR-004 | Opção C aceita pelo solicitante; compartilhar com o grupo. Implementação prevista para E2/E3. |
+| 19/10 | ADR-004 | Opção C discutida e aceita pelo grupo; leitura interna implementada em E2 e fallback em E3. |
 | 19/10 | E2 | 20 testes do emissor; 22 no build completo. Repetição 202 estável, conflito 409, leitura interna 200 e ausente 404. |
+| 19/10 | E3 | 8 testes de consulta; 29 no build completo. Fallback 200, cache hit, ausência 404, UUID inválido 400 e indisponibilidade 503 rastreável. |
+
+## Validação da E3
+
+- [x] **16. Testes automatizados da consulta/cache**
+    ```powershell
+    mvn -B -pl boleto-consulta -am test
+    ```
+    Resultado: `BUILD SUCCESS`; 8 testes da consulta aprovados, incluindo política Caffeine de expiração variável.
+- [x] **17. Build completo**
+    ```powershell
+    mvn -B clean verify
+    ```
+    Resultado: `BUILD SUCCESS` nos 4 módulos, 29 testes aprovados.
+- [x] **18. Fallback real (emissor, registro e consulta ligados):** POST válido no emissor e consulta pelo UUID no serviço de consulta. Resultado: HTTP 200, `AGUARDANDO_REGISTRO`.
+- [x] **19. UUID existente no cache:** repetir o GET devolveu HTTP 200. O teste automatizado confirmou que a segunda leitura não chamou as fontes novamente.
+- [x] **20. UUID válido inexistente:** consulta retornou HTTP 404. Teste automatizado confirmou que 404 não fica no cache.
+- [x] **21. UUID malformado:** `/boletos/nao-e-uuid` retornou HTTP 400.
+- [x] **22. Falha técnica:** com o serviço de registro indisponível, a consulta retornou HTTP 503 com `correlation_id` e `X-Correlation-ID`, nunca 404.
+
+> Limite conhecido na E3: o serviço de registro ainda não tem endpoint/dados de leitura. Para este marco, o client de registro recebe 404 e a consulta executa o fallback no emissor. Consulta real de `REGISTRADO`/`REJEITADO` depende da implementação posterior do registro.

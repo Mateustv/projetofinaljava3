@@ -14,7 +14,7 @@
 | `central_cobranca_boletos_elicitacao.docx` | Personas, 5 sessões de requisitos e glossário do **nosso** tema |
 | `projeto-guiado-pix/gabarito/aula-0N/` | Código de referência de cada aula (+ `ESTADO.md`) |
 | `plano-de-aulas/aula-0N-aluno.md` | Teoria de cada aula |
-| `projeto-final-grupo/` | Estrutura E0 e implementação E1 concluídas; `mvn clean verify` passou. Health checks manuais, chamadas HTTP da E1 e revisão das decisões pelo grupo continuam pendentes. |
+| `projeto-final-grupo/` | E0–E3 implementadas; build e testes automatizados e HTTP passaram. A consulta já usa cache-aside e fallback da opção C; leitura de estados finais aguarda o serviço de registro (E4/E5). |
 
 ### ⚠️ Atenção à numeração (pega muita gente)
 As pastas do gabarito **não** batem 1:1 com os planos de aula:
@@ -80,9 +80,9 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [x] Rascunho do event storming documentado com o fluxo de 8 passos, eventos, comandos, atores, políticas e **hotspots**; grupo ainda deve revisar
 - [x] Agregado `Boleto` e VOs definidos conceitualmente (sem classe de domínio implementada nesta etapa)
 - [x] `docs/arquitetura.md` com diagrama de contextos
-- [x] **ADR-002** (bases segregadas), **ADR-003** (corte em 3 serviços) e **ADR-004** (estado inicial — opção C aceita pelo solicitante; grupo deve ser informado)
+- [x] **ADR-002** (bases segregadas), **ADR-003** (corte em 3 serviços) e **ADR-004** (estado inicial — opção C discutida e aceita pelo grupo)
 - [x] Código: `boleto-emissor` com `POST /boletos` validando campos essenciais → `202` / `400`; cada serviço com **seu H2**; testes automatizados verdes
-> **Hotspot decidido para o MVP (ADR-004):** a consulta tenta o registro; se ainda não encontrou o boleto, busca o aceite no emissor e devolve `AGUARDANDO_REGISTRO`. A opção C foi aceita pelo solicitante; falta compartilhar com o grupo. A implementação entra em E2/E3.
+> **Hotspot decidido para o MVP (ADR-004):** a consulta tenta o registro; se ainda não encontrou o boleto, busca o aceite no emissor e devolve `AGUARDANDO_REGISTRO`. A opção C foi discutida e aceita pelo grupo e está implementada em E2/E3.
 
 ## E2 — Idempotência e consistência (Aula 2) — *critério 3*
 **Referência:** `aula-02/ESTADO.md`, plano aula-02 §4–§7
@@ -99,12 +99,13 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 **Referência:** `aula-03/` (`ConsultaService`, `CacheConfig`), plano aula-04
 **Conceito:** cache-aside, TTL, invalidação, 404 × falha técnica.
 **Fazer:**
-- [ ] `GET /boletos/{id}`: cache → miss → fonte persistente → popula cache
-- [ ] Caffeine (Plano B) atrás de `@Cacheable`
-- [ ] **Diferença do PIX:** estado muda ⇒ política: **TTL curto para estados transitórios**, longo para finais; não cachear 404
-- [ ] Resposta só expõe linha digitável/código de barras se `REGISTRADO` (Sessão 3)
-- [ ] ADR-006 estratégia de cache (alternativas: TTL só, invalidação por evento, write-through)
-- [ ] Teste: 2ª consulta não chega na fonte; falha técnica ≠ 404
+- [x] `GET /boletos/{id}`: cache → miss → registro; se 404, fallback ao aceite persistido no emissor (opção C); popula cache quando encontrado
+- [x] Caffeine (Plano B) atrás de `@Cacheable`
+- [x] TTL provisório curto para transitório (30 s) e longo para finais (10 min); 404 e falhas não são cacheados
+- [x] Resposta só expõe linha digitável/código de barras se `REGISTRADO`; rejeição só expõe código/motivo de negócio
+- [x] ADR-006 registra TTL, invalidação por evento e write-through como alternativas; decisão provisória
+- [x] Testes: cache hit não chama fontes; falha técnica ≠ 404; fallback, projeção dos estados e UUID inválido cobertos
+> **Limite desta etapa:** `boleto-registro` ainda não tem endpoint/dados de consulta. O caminho de E3 exercita o 404 do registro e o fallback no emissor; estados finais serão servidos quando o registro for implementado.
 
 ## E4 — Comunicação assíncrona (Aula 5) — *critério 2*
 **Referência:** `aula-04/` (`GravacaoPublisher`, `GravacaoListener`), plano aula-05

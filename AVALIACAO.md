@@ -13,7 +13,7 @@ Perfil de execução: B (pura-JVM)  ·  Fallbacks usados: <preencher>
 3. Idempotência e consistência — _
    Evidência: (E2) emissor persiste o aceite; mesma chave e conteúdo retorna a resposta original sem duplicar; conteúdo diferente retorna 409. (E4) consumidor idempotente ainda pendente.
 4. Cache — _
-   Evidência: (E3)
+   Evidência: (E3) Caffeine cache-aside; TTL variável por estado (30 s transitório, 10 min final), sem cachear 404; testes de cache hit, fallback e 503.
 5. Resiliência — _
    Evidência: (E5)
 6. Testabilidade — _

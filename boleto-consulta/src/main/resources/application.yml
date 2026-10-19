@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: boleto-consulta
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+integracoes:
+  registro:
+    base-url: http://localhost:8082
+  emissor:
+    base-url: http://localhost:8081
 
 management:
   endpoints:

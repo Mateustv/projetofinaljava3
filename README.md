@@ -23,8 +23,8 @@ O `install` inicial é necessário porque os serviços dependem do `shared-contr
 
 ## Documentação do processo
 - [`ROTEIRO.md`](ROTEIRO.md) — etapas E0…E6
-- [`docs/etapas/`](docs/etapas/) — o que foi feito e o que aprendemos em cada etapa (inclui [E2](docs/etapas/E2-idempotencia.md))
-- [`docs/validacao-pendente.md`](docs/validacao-pendente.md) — comandos a rodar na rede corporativa
+- [`docs/etapas/`](docs/etapas/) — o que foi feito e o que aprendemos em cada etapa (inclui [E2](docs/etapas/E2-idempotencia.md) e [E3](docs/etapas/E3-consulta-e-cache.md))
+- [`docs/validacao-pendente.md`](docs/validacao-pendente.md) — resultados e testes manuais pendentes
 - [`AVALIACAO.md`](AVALIACAO.md) — auto-avaliação por critério
 
 ## Uso de IA
