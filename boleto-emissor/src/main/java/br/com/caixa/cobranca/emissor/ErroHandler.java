@@ -24,4 +24,15 @@ public class ErroHandler {
         return ResponseEntity.badRequest()
                 .body(new ErroValidacao(List.of(new CampoInvalido("corpo", "JSON invalido ou com valor fora do formato"))));
     }
+
+    @ExceptionHandler(ChaveIdempotenciaConflitanteException.class)
+    public ResponseEntity<ConflitoIdempotencia> aoConflitarIdempotencia(ChaveIdempotenciaConflitanteException ex) {
+        return ResponseEntity.status(409)
+                .body(new ConflitoIdempotencia("CHAVE_IDEMPOTENCIA_CONFLITANTE", ex.getMessage()));
+    }
+
+    @ExceptionHandler(FalhaAoAceitarEmissaoException.class)
+    public ResponseEntity<Void> aoFalharPersistencia(FalhaAoAceitarEmissaoException ex) {
+        return ResponseEntity.status(503).build();
+    }
 }

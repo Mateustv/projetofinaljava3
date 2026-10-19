@@ -6,7 +6,7 @@
 
 | Serviço | Porta | Base | Responsabilidade |
 |---|:-:|---|---|
-| `boleto-emissor` | 8081 | H2 `emissor` (própria) | Receber POST, validar, aceitar (202), idempotência |
+| `boleto-emissor` | 8081 | H2 `emissor` (própria) | Receber POST, validar, persistir aceite (202), idempotência |
 | `boleto-registro` | 8082 | H2 `registro` (própria) | Consumir fila, registrar título, manter estado |
 | `boleto-consulta` | 8083 | sem base (ADR-004, opção C) | Consulta por identificador com cache |
 | `shared-contracts` | — | — | Records de comandos/eventos/DTOs |
@@ -30,7 +30,7 @@ flowchart LR
 `AGUARDANDO_REGISTRO → REGISTRADO | REJEITADO` (detalhe em `requisitos/glossario-e-regras.md`).
 
 ## Decisões
-- [ADR-001](adr/ADR-001-stack-java17-e-perfis.md) stack e perfis · [ADR-002](adr/ADR-002-bases-segregadas.md) bases segregadas · [ADR-003](adr/ADR-003-corte-tres-servicos.md) corte em 3 serviços · [ADR-004](adr/ADR-004-fonte-do-estado-inicial.md) estado inicial (**opção C aceita pelo solicitante; implementação em E2/E3**)
+- [ADR-001](adr/ADR-001-stack-java17-e-perfis.md) stack e perfis · [ADR-002](adr/ADR-002-bases-segregadas.md) bases segregadas · [ADR-003](adr/ADR-003-corte-tres-servicos.md) corte em 3 serviços · [ADR-004](adr/ADR-004-fonte-do-estado-inicial.md) estado inicial (**opção C aceita pelo solicitante; leitura interna implementada na E2**) · [ADR-005](adr/ADR-005-saga-e-outbox-no-mvp.md) SAGA/outbox (**proposta para o grupo**)
 
 ## Garantia de entrega e idempotência
-*(a declarar na E4: at-least-once + consumidor idempotente)*
+Na E2, o emissor persiste o aceite antes de responder e protege a chave `convenio + numero_controle_cliente` com restrição única. A garantia de entrega da fila e a idempotência do consumidor serão definidas na E4.

@@ -88,12 +88,12 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 **Referência:** `aula-02/ESTADO.md`, plano aula-02 §4–§7
 **Conceito:** SAGA/compensação, idempotência, outbox, mito do exactly-once.
 **Fazer:**
-- [ ] Emissor persiste o aceite (H2 próprio) com **chave única (convênio + nº controle)**
-- [ ] Reenvio igual → mesma resposta (202, mesmo id); mesma chave + conteúdo diferente → **409**
-- [ ] ADR-005: SAGA/outbox — o que vamos (ou não) implementar e por quê
-- [ ] Teste: enviar 2× a mesma emissão → 1 só registro
+- [x] Emissor persiste o aceite (H2 próprio) com **chave única (convênio + nº controle)**
+- [x] Reenvio igual → mesma resposta (202, mesmo id); mesma chave + conteúdo diferente → **409**
+- [x] ADR-005 criada como proposta: sem SAGA síncrona/outbox na E2; reavaliar outbox na E4 com o grupo
+- [x] Testes: reenvio igual cria um só registro; conflito não cria outro; concorrência, escala decimal e leitura interna cobertos
 > O gabarito faz aqui uma SAGA **síncrona** (emissor→REST→gravador) que a Aula 4 **substitui** por fila.
-> Recomendação: **não implemente a versão síncrona**; pegue só a idempotência + compensação como conceito.
+> Não implementamos a versão síncrona: a E2 persiste o aceite; a decisão sobre outbox está na ADR-005 e deve ser ratificada pelo grupo.
 
 ## E3 — Cache na consulta (Aula 4) — *critério 4*
 **Referência:** `aula-03/` (`ConsultaService`, `CacheConfig`), plano aula-04

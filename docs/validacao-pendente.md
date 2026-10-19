@@ -70,7 +70,24 @@ $bodyInvalido = $body.Replace('"convenio":"123456"', '"convenio":"1"').Replace('
 curl.exe -i -X POST http://localhost:8081/boletos -H "Content-Type: application/json" --data-binary $bodyInvalido
 ```
 
-> Importante: em E1, o POST de aceite ainda não persiste o boleto. O 202 prova validação e formato da resposta, mas o identificador não estará disponível para consulta após a requisição. Persistência e fallback do ADR-004 serão implementados em E2/E3.
+> Nota histórica da E1: naquele momento o POST ainda não persistia o aceite. A persistência e a leitura interna foram adicionadas na E2; o fallback completo, passando pelo serviço de consulta, continua para E3.
+
+## Validação da E2
+
+- [x] **10. Testes automatizados de persistência e idempotência**
+    ```powershell
+    mvn -B -pl boleto-emissor -am test
+    ```
+    Resultado: `BUILD SUCCESS`; 20 testes do emissor passaram, sem falhas. Inclui repetição igual, conflito `409`, escala decimal equivalente, concorrência, uma linha por chave e consulta interna.
+- [x] **11. Repetir emissão → mesmo aceite:** dois POSTs iguais retornaram `202` com o mesmo UUID e a mesma data/hora.
+- [x] **12. Mesma chave e conteúdo diferente → conflito:** alterar o valor mantendo convênio e número de controle retornou `409` com `CHAVE_IDEMPOTENCIA_CONFLITANTE`.
+- [x] **13. Consultar aceite pelo endpoint interno:** `GET /interno/boletos/{identificador}` retornou `200` e o aceite original.
+- [x] **14. Identificador não encontrado:** consulta interna com UUID válido inexistente retornou `404`.
+- [x] **15. Build completo após E2**
+    ```powershell
+    mvn -B clean verify
+    ```
+    Resultado: `BUILD SUCCESS` nos 4 módulos, 22 testes aprovados no total (20 no emissor).
 
 ## Se algo falhar
 
@@ -83,3 +100,4 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 | 19/10 | E0 | Java 17.0.12/Maven 3.9.10; build e 17 testes aprovados; health dos 3 serviços HTTP 200. |
 | 19/10 | E1 | 15 testes do emissor aprovados; POST válido 202, POST inválido 400 e JSON malformado 400. |
 | 19/10 | ADR-004 | Opção C aceita pelo solicitante; compartilhar com o grupo. Implementação prevista para E2/E3. |
+| 19/10 | E2 | 20 testes do emissor; 22 no build completo. Repetição 202 estável, conflito 409, leitura interna 200 e ausente 404. |

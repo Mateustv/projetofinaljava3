@@ -11,7 +11,7 @@ Perfil de execução: B (pura-JVM)  ·  Fallbacks usados: <preencher>
 2. Comunicação assíncrona — _
    Evidência: (E4)
 3. Idempotência e consistência — _
-   Evidência: (E2/E4)
+   Evidência: (E2) emissor persiste o aceite; mesma chave e conteúdo retorna a resposta original sem duplicar; conteúdo diferente retorna 409. (E4) consumidor idempotente ainda pendente.
 4. Cache — _
    Evidência: (E3)
 5. Resiliência — _
