@@ -14,12 +14,12 @@ Empresas emitem cobranças e não sabem se foram apenas recebidas, registradas o
 ## Como rodar
 Requer JDK 17 e Maven, na rede com acesso ao Nexus corporativo.
 ```bash
-mvn clean verify                                   # compila e roda os testes
-mvn -pl boleto-emissor  spring-boot:run            # 8081
-mvn -pl boleto-registro spring-boot:run            # 8082
-mvn -pl boleto-consulta spring-boot:run            # 8083
+mvn -B clean install                               # compila, testa e instala os módulos localmente
+mvn -pl boleto-emissor spring-boot:run             # terminal 1, 8081
+mvn -pl boleto-registro spring-boot:run            # terminal 2, 8082
+mvn -pl boleto-consulta spring-boot:run            # terminal 3, 8083
 ```
-Checar: `http://localhost:8081/actuator/health` → `{"status":"UP"}`.
+O `install` inicial é necessário porque os serviços dependem do `shared-contracts` e do POM pai, que precisam estar no repositório Maven local antes de executar cada módulo isoladamente. Para confirmar: `curl.exe -i http://localhost:8081/actuator/health` (repita nas portas 8082 e 8083) → HTTP 200 e `{"status":"UP"}`.
 
 ## Documentação do processo
 - [`ROTEIRO.md`](ROTEIRO.md) — etapas E0…E6
