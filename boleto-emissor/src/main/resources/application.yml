@@ -14,6 +14,9 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  jackson:
+    # JSON do contrato em snake_case (numero_controle_cliente, valor_nominal...)
+    property-naming-strategy: SNAKE_CASE
 
 management:
   endpoints:

@@ -14,7 +14,7 @@
 | `central_cobranca_boletos_elicitacao.docx` | Personas, 5 sessões de requisitos e glossário do **nosso** tema |
 | `projeto-guiado-pix/gabarito/aula-0N/` | Código de referência de cada aula (+ `ESTADO.md`) |
 | `plano-de-aulas/aula-0N-aluno.md` | Teoria de cada aula |
-| `projeto-final-grupo/` | Só o brief. **Nenhum código ainda** → começamos do zero |
+| `projeto-final-grupo/` | Estrutura E0 e implementação E1 concluídas; `mvn clean verify` passou. Health checks manuais, chamadas HTTP da E1 e revisão das decisões pelo grupo continuam pendentes. |
 
 ### ⚠️ Atenção à numeração (pega muita gente)
 As pastas do gabarito **não** batem 1:1 com os planos de aula:
@@ -67,21 +67,21 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 **Referência:** `gabarito/aula-01/pom.xml`, módulos vazios, `ambiente/checklist-semana-0.md`
 **Conceito:** multi-módulo Maven, profiles A/B/C (`plano-b-jvm`), `shared-contracts`.
 **Fazer:**
-- [ ] Repositório do grupo com estrutura do brief §3 (`README`, `AVALIACAO.md`, `docs/adr`, `docs/arquitetura.md`, `pom.xml`)
-- [ ] Módulos: `shared-contracts`, `boleto-emissor` (8081), `boleto-registro` (8082), `boleto-consulta` (8083)
-- [ ] `mvn clean compile` verde no perfil `plano-b-jvm`
-- [ ] **Declarar perfil de execução** no README (B, pois a turma não usa Docker)
-**Pronto quando:** compila sem erro e cada app sobe com `spring-boot:run`.
+- [x] Repositório do grupo com estrutura do brief §3 (`README`, `AVALIACAO.md`, `docs/adr`, `docs/arquitetura.md`, `pom.xml`)
+- [x] Módulos: `shared-contracts`, `boleto-emissor` (8081), `boleto-registro` (8082), `boleto-consulta` (8083)
+- [x] `mvn clean verify` verde no perfil `plano-b-jvm` (perfil ativo por padrão)
+- [x] **Declarar perfil de execução** no README (B, pois a turma não usa Docker)
+**Pronto quando:** build e testes passam; falta conferir manualmente cada app com `spring-boot:run` e seu health check.
 
 ## E1 — DDD e bases segregadas (Aula 1) — *critérios 1 e 7*
 **Referência:** `aula-01/ESTADO.md`, `ADR-001-bases-segregadas.md`, plano aula-01 §7 (cenário PIX completo)
 **Conceito:** linguagem ubíqua, event storming, bounded context, agregado.
 **Fazer (em grupo, no papel antes do código):**
-- [ ] Event storming com o fluxo de 8 passos do docx: eventos (`EmissaoAceita`, `BoletoRegistrado`, `RegistroRejeitado`), comandos, atores, políticas, **hotspots**
-- [ ] Definir o agregado `Boleto` (entidade) e VOs (`Valor`, `Pagador`, `Convenio`…)
-- [ ] `docs/arquitetura.md` com diagrama de contextos
-- [ ] **ADR-002** (bases segregadas), **ADR-003** (por que 3 serviços e não 1 — o "corte")
-- [ ] Código: `boleto-emissor` com `POST /boletos` validando campos essenciais → `202` / `400`; cada serviço com **seu H2**
+- [x] Rascunho do event storming documentado com o fluxo de 8 passos, eventos, comandos, atores, políticas e **hotspots**; grupo ainda deve revisar
+- [x] Agregado `Boleto` e VOs definidos conceitualmente (sem classe de domínio implementada nesta etapa)
+- [x] `docs/arquitetura.md` com diagrama de contextos
+- [x] **ADR-002** (bases segregadas), **ADR-003** (corte em 3 serviços) e **ADR-004** (estado inicial — *proposta*, grupo confirma)
+- [x] Código: `boleto-emissor` com `POST /boletos` validando campos essenciais → `202` / `400`; cada serviço com **seu H2**; testes automatizados verdes
 > **Decisão em aberto (hotspot!):** recém-emitido, a consulta precisa achar `AGUARDANDO_REGISTRO`
 > (Sessão 3), mas o `boleto-registro` ainda não gravou nada. Quem guarda o estado inicial?
 > Opções: (a) emissor persiste o aceite e a consulta cai nele no fallback; (b) emissor também publica…
@@ -93,7 +93,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 **Fazer:**
 - [ ] Emissor persiste o aceite (H2 próprio) com **chave única (convênio + nº controle)**
 - [ ] Reenvio igual → mesma resposta (202, mesmo id); mesma chave + conteúdo diferente → **409**
-- [ ] ADR-004: SAGA/outbox — o que vamos (ou não) implementar e por quê
+- [ ] ADR-005: SAGA/outbox — o que vamos (ou não) implementar e por quê
 - [ ] Teste: enviar 2× a mesma emissão → 1 só registro
 > O gabarito faz aqui uma SAGA **síncrona** (emissor→REST→gravador) que a Aula 4 **substitui** por fila.
 > Recomendação: **não implemente a versão síncrona**; pegue só a idempotência + compensação como conceito.
@@ -106,7 +106,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Caffeine (Plano B) atrás de `@Cacheable`
 - [ ] **Diferença do PIX:** estado muda ⇒ política: **TTL curto para estados transitórios**, longo para finais; não cachear 404
 - [ ] Resposta só expõe linha digitável/código de barras se `REGISTRADO` (Sessão 3)
-- [ ] ADR-005 estratégia de cache (alternativas: TTL só, invalidação por evento, write-through)
+- [ ] ADR-006 estratégia de cache (alternativas: TTL só, invalidação por evento, write-through)
 - [ ] Teste: 2ª consulta não chega na fonte; falha técnica ≠ 404
 
 ## E4 — Comunicação assíncrona (Aula 5) — *critério 2*
@@ -128,7 +128,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Falha **permanente** (mensagem inválida) → DLQ com listener que loga **sem vazar dados** (Sessão 5)
 - [ ] Rejeição de negócio → estado `REJEITADO` (não DLQ)
 - [ ] Prova: mensagem envenenada → 3 tentativas → DLQ; mensagem boa segue
-- [ ] ADR-006 retry/DLQ
+- [ ] ADR-007 retry/DLQ
 
 ## E6 — Fechamento da base
 - [ ] `README.md` (tema, arquitetura, como rodar, perfil)
