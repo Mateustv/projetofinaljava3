@@ -45,13 +45,13 @@ mvn -B clean verify
 
 Os testes automatizados cobrem cache hit (segunda leitura não chama as fontes), TTL conforme o estado, fallback, estados finais, remoção de dados que não devem ser expostos, não cachear 404, 400 para UUID malformado e 503 para falha técnica.
 
-Com emissor e consulta em execução, crie uma emissão pelo `POST /boletos`, copie o UUID e consulte:
+Com emissor, registro e consulta em execução, crie uma emissão pelo `POST /boletos`, copie o UUID e consulte:
 
 ```powershell
 curl.exe -i http://localhost:8083/boletos/COLE-O-UUID-AQUI
 ```
 
-Esperado: HTTP 200 com `AGUARDANDO_REGISTRO`, pois a aplicação atual ainda não implementa o consumidor de registro. Consultar UUID válido inexistente deve retornar 404; caminho com texto que não seja UUID deve retornar 400.
+O registro agora é assíncrono: uma consulta muito rápida pode devolver `AGUARDANDO_REGISTRO`; depois que o consumidor processar, o estado passa a `REGISTRADO`. O cache pode manter a projeção transitória por até 30 segundos. Consultar UUID válido inexistente deve retornar 404; caminho com texto que não seja UUID deve retornar 400.
 
-## Limite conhecido
-O serviço de registro ainda não possui endpoint interno nem registros de boletos nesta etapa. Portanto, durante E3, sua rota de leitura é considerada ausente (404) e o fluxo exercita o fallback ao emissor. A leitura real de `REGISTRADO`/`REJEITADO` dependerá da persistência e API do registro nas próximas etapas; os contratos e testes de consulta já definem como esses estados serão projetados.
+## Contexto histórico
+Quando a E3 foi validada, o serviço de registro ainda não possuía endpoint interno nem registros de boletos; por isso, aquela validação exercitou o fallback ao emissor. A E4 implementou o consumidor, a persistência do registro e a rota interna de leitura de `REGISTRADO`.

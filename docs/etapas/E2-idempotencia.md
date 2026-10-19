@@ -33,18 +33,15 @@ Fazer com que o aceite deixe de existir apenas na resposta HTTP: o emissor grava
 | `BoletoControllerTest` | Verifica `202`, reenvio igual, conflito `409`, escala decimal equivalente, concorrência, contagem de registros e consulta interna |
 
 ## Por que guardar também o JSON da solicitação?
-A impressão digital basta para comparar reenvios, mas o conteúdo será necessário quando a E4 criar o comando para a fila de registro. O JSON pode conter dados pessoais. Nesta versão de demonstração, ele fica no H2 em memória; não é incluído em respostas de erro nem deve ser escrito em logs. Uma implantação real exigiria controles de acesso, proteção da base, retenção e avaliação de criptografia.
+A impressão digital basta para comparar reenvios, mas o conteúdo é necessário para criar o `RegistrarBoletoCommand` da E4. O JSON pode conter dados pessoais. No perfil local, o aceite e sua solicitação ficam no H2 em arquivo; a cópia temporária do comando na outbox é removida depois da confirmação do registro. O conteúdo não é incluído em respostas de erro nem deve ser escrito em logs. Uma implantação real exigiria controles de acesso, proteção da base, retenção e avaliação de criptografia.
 
 ## Decisão arquitetural: SAGA e outbox
-A [ADR-005](../adr/ADR-005-saga-e-outbox-no-mvp.md) registra a proposta de não implementar SAGA síncrona nem outbox nesta etapa. O POST não chama o serviço de registro. A outbox será reavaliada na E4, quando surgir a publicação efetiva da mensagem.
+A [ADR-005](../adr/ADR-005-saga-e-outbox-no-mvp.md) registra a decisão histórica de não incluir outbox na E2. Na E4, a decisão foi revista: o aceite e a intenção de registrar agora são gravados na mesma transação; o POST continua sem chamar o serviço de registro.
 
-## Limites desta etapa
-- O H2 está configurado como banco **em memória** para o Plano B didático: os registros persistem durante a execução do serviço, mas desaparecem quando o processo termina.
-- As travas são locais à instância; não substituem a restrição única do banco. O H2 em memória deste MVP é executado como uma instância.
-- O endpoint interno retorna o aceite, não consulta o registro nem publica mensagens.
-- O caminho `/interno/...` indica uma API interna por convenção; autenticação/autorização entre serviços ainda não foi implementada. Em uma implantação real, o endpoint deve ficar restrito a uma rede confiável e receber controles de acesso.
-- O status fica `AGUARDANDO_REGISTRO` até a implementação do consumidor nas etapas posteriores.
-- A proposta da ADR-005 ainda deve ser discutida com o grupo.
+## Limites do marco E2
+- Quando a E2 foi concluída, o H2 estava em memória e o status ficava `AGUARDANDO_REGISTRO`, pois ainda não existia consumidor. Na E4, a execução passou a usar H2 em arquivo e o consumidor assíncrono passou a atualizar o estado.
+- As travas são locais à instância; não substituem a restrição única do banco.
+- O endpoint `/interno/...` continua sem autenticação/autorização entre serviços. Em uma implantação real, ele deve ficar restrito a uma rede confiável e receber controles de acesso.
 
 ## Como provar
 Na raiz de `projeto-final-grupo`:

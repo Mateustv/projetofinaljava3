@@ -7,7 +7,7 @@ Precisamos de uma base técnica que **todo o grupo consiga compilar e rodar** (E
 - **Java 17** + **Spring Boot 3.3.5** (suporta 17+; mesma versão do gabarito).
 - **Maven multi-módulo**: pai agregador + `shared-contracts` + 3 serviços.
 - **Perfis**: `plano-b-jvm` (padrão), `plano-a-docker`, `plano-c-conceitual`. Na E0 estão vazios; cada etapa adiciona só a infra que passa a usar.
-- Cada serviço tem **sua base H2 em memória** (emissor e registro); a consulta ainda não tem base (fonte em aberto — será ADR na E1).
+- `boleto-emissor` e `boleto-registro` mantêm bases H2 segregadas. No perfil local de execução, as bases usam arquivos para preservar outbox e registros após reiniciar o serviço; os testes automatizados continuam usando H2 em memória. A consulta não tem base própria (fonte definida na ADR-004).
 
 ## Alternativas consideradas
 - **Java 21 como o gabarito** — exigiria instalar outro JDK; sem ganho para o escopo. **Rejeitada.**

@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Testes de emissao, idempotencia e leitura interna do aceite. */
-@SpringBootTest
+@SpringBootTest(properties = "emissao.outbox.dispatch.enabled=false")
 @AutoConfigureMockMvc
 class BoletoControllerTest {
 
@@ -32,6 +32,9 @@ class BoletoControllerTest {
 
     @Autowired
     private EmissaoAceitaRepository repository;
+
+    @Autowired
+    private ComandoRegistroOutboxRepository outboxRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -102,6 +105,8 @@ class BoletoControllerTest {
         assertEquals(objectMapper.readTree(primeiro), objectMapper.readTree(segundo));
         assertEquals(1L,
                 repository.countByConvenioAndNumeroControleCliente("123456", "NF-IDEMP-001"));
+        assertEquals(1L, outboxRepository.countByIdentificador(
+                UUID.fromString(objectMapper.readTree(primeiro).get("identificador").asText())));
     }
 
     @Test
@@ -164,6 +169,7 @@ class BoletoControllerTest {
             assertEquals(aceite1.identificador(), aceite2.identificador());
             assertEquals(1L,
                     repository.countByConvenioAndNumeroControleCliente("123456", "NF-CONCURRENT-001"));
+            assertEquals(1L, outboxRepository.countByIdentificador(aceite1.identificador()));
         } finally {
             executor.shutdownNow();
         }

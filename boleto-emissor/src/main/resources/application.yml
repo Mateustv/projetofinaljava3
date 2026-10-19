@@ -6,7 +6,7 @@ spring:
     name: boleto-emissor
   # Base H2 PROPRIA do emissor (nenhum outro servico acessa esta base).
   datasource:
-    url: jdbc:h2:mem:emissor;DB_CLOSE_DELAY=-1
+    url: ${EMISSOR_DB_URL:jdbc:h2:file:./data/emissor;DB_CLOSE_ON_EXIT=FALSE}
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -17,6 +17,16 @@ spring:
   jackson:
     # JSON do contrato em snake_case (numero_controle_cliente, valor_nominal...)
     property-naming-strategy: SNAKE_CASE
+
+integracao:
+  registro:
+    url: ${REGISTRO_URL:http://localhost:8082}
+
+emissao:
+  outbox:
+    dispatch:
+      enabled: ${OUTBOX_DISPATCH_ENABLED:true}
+      interval-ms: ${OUTBOX_DISPATCH_INTERVAL_MS:1000}
 
 management:
   endpoints:

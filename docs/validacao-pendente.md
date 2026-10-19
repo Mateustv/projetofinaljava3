@@ -102,6 +102,7 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 | 19/10 | ADR-004 | Opção C discutida e aceita pelo grupo; leitura interna implementada em E2 e fallback em E3. |
 | 19/10 | E2 | 20 testes do emissor; 22 no build completo. Repetição 202 estável, conflito 409, leitura interna 200 e ausente 404. |
 | 19/10 | E3 | 8 testes de consulta; 29 no build completo. Fallback 200, cache hit, ausência 404, UUID inválido 400 e indisponibilidade 503 rastreável. |
+| 19/10 | E4 | 22 testes do emissor, 5 do registro e 8 da consulta; 35 no build completo. Emissão HTTP 202, entrega após reinício do emissor e consulta interna 200/REGISTRADO. |
 
 ## Validação da E3
 
@@ -121,4 +122,18 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 - [x] **21. UUID malformado:** `/boletos/nao-e-uuid` retornou HTTP 400.
 - [x] **22. Falha técnica:** com o serviço de registro indisponível, a consulta retornou HTTP 503 com `correlation_id` e `X-Correlation-ID`, nunca 404.
 
-> Limite conhecido na E3: o serviço de registro ainda não tem endpoint/dados de leitura. Para este marco, o client de registro recebe 404 e a consulta executa o fallback no emissor. Consulta real de `REGISTRADO`/`REJEITADO` depende da implementação posterior do registro.
+> Contexto histórico da E3: naquele marco, o serviço de registro ainda não tinha endpoint/dados de leitura; a E4 implementou o consumidor, a persistência e a leitura de `REGISTRADO`.
+
+## Validação da E4
+
+- [x] Testes direcionados do produtor/outbox e consumidor:
+    ```powershell
+    mvn -B -pl boleto-emissor,boleto-registro -am test
+    ```
+    Resultado: `BUILD SUCCESS`; 22 testes do emissor e 5 do registro passaram.
+- [x] O emissor grava aceite e mensagem outbox na mesma transação; reenvio idempotente não cria uma segunda mensagem.
+- [x] O consumidor registra o comando uma vez, responde de forma idempotente à reentrega e rejeita conteúdo conflitante com `409`.
+- [x] Falha de transporte mantém o comando pendente para nova tentativa; sucesso remove o payload da outbox.
+- [x] Validação manual entre processos: `POST /boletos` retornou `202`/`AGUARDANDO_REGISTRO`; após o despachante, `GET /interno/boletos/{id}` retornou `200`/`REGISTRADO` e `SIM-{id}`.
+- [x] Reinício durante indisponibilidade: aceitei um boleto com o registro desligado, reiniciei o emissor, subi o registro e confirmei a entrega posterior do comando persistido.
+- [x] `mvn -B clean verify`: `BUILD SUCCESS`; 35 testes nos quatro módulos.

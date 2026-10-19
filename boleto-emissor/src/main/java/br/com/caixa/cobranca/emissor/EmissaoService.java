@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,14 +27,17 @@ public class EmissaoService {
 
     private final EmissaoValidator validator;
     private final EmissaoAceitaRepository repository;
+    private final EmissaoPersistenceService persistencia;
     private final ObjectMapper objectMapper;
     private final ReentrantLock[] travas = criarTravas();
 
     public EmissaoService(EmissaoValidator validator,
                           EmissaoAceitaRepository repository,
+                          EmissaoPersistenceService persistencia,
                           ObjectMapper objectMapper) {
         this.validator = validator;
         this.repository = repository;
+        this.persistencia = persistencia;
         this.objectMapper = objectMapper;
     }
 
@@ -72,16 +73,8 @@ public class EmissaoService {
             return devolverOuConflitar(existente.get(), fingerprint);
         }
 
-        EmissaoAceitaEntity novo = new EmissaoAceitaEntity(
-                UUID.randomUUID(),
-                request.convenio(),
-                request.numeroControleCliente(),
-                fingerprint,
-                payload,
-                LocalDateTime.now().truncatedTo(ChronoUnit.MICROS)
-        );
         try {
-            return repository.saveAndFlush(novo).comoResposta();
+            return persistencia.persistir(request, fingerprint, payload);
         } catch (DataIntegrityViolationException ex) {
             Optional<EmissaoAceitaEntity> concorrente =
                     buscarPorChave(request.convenio(), request.numeroControleCliente());

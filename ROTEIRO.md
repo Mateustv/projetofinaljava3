@@ -14,7 +14,7 @@
 | `central_cobranca_boletos_elicitacao.docx` | Personas, 5 sessões de requisitos e glossário do **nosso** tema |
 | `projeto-guiado-pix/gabarito/aula-0N/` | Código de referência de cada aula (+ `ESTADO.md`) |
 | `plano-de-aulas/aula-0N-aluno.md` | Teoria de cada aula |
-| `projeto-final-grupo/` | E0–E3 implementadas; build e testes automatizados e HTTP passaram. A consulta já usa cache-aside e fallback da opção C; leitura de estados finais aguarda o serviço de registro (E4/E5). |
+| `projeto-final-grupo/` | E0–E4 implementadas; emissão usa outbox transacional e entrega HTTP assíncrona, com consumidor idempotente. RabbitMQ/Docker e retry/DLQ real ficam para E5. |
 
 ### ⚠️ Atenção à numeração (pega muita gente)
 As pastas do gabarito **não** batem 1:1 com os planos de aula:
@@ -105,20 +105,21 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [x] Resposta só expõe linha digitável/código de barras se `REGISTRADO`; rejeição só expõe código/motivo de negócio
 - [x] ADR-006 registra TTL, invalidação por evento e write-through como alternativas; decisão provisória
 - [x] Testes: cache hit não chama fontes; falha técnica ≠ 404; fallback, projeção dos estados e UUID inválido cobertos
-> **Limite desta etapa:** `boleto-registro` ainda não tem endpoint/dados de consulta. O caminho de E3 exercita o 404 do registro e o fallback no emissor; estados finais serão servidos quando o registro for implementado.
+> **Registro histórico da E3:** naquele marco o serviço de registro ainda não tinha endpoint/dados de consulta; a E4 implementou o consumidor e a leitura interna dos estados finais.
 
 ## E4 — Comunicação assíncrona (Aula 5) — *critério 2*
 **Referência:** `aula-04/` (`GravacaoPublisher`, `GravacaoListener`), plano aula-05
 **Conceito:** producer/consumer, mensagem × evento, at-least-once, consumidor idempotente.
 **Fazer:**
-- [ ] Emissor publica `RegistrarBoletoCommand` e responde 202 sem esperar
-- [ ] `boleto-registro` consome (`@RabbitListener`), grava e simula a registradora
-- [ ] Consumidor **idempotente** (mesmo id reentregue não duplica) + teste que prova
-- [ ] README declara a **garantia de entrega** (at-least-once + idempotência)
-- [ ] Broker: Plano B (Qpid embarcado) ou Plano C (in-process) — **declarar fallback**
+- [x] Emissor persiste `RegistrarBoletoCommand` na outbox na mesma transação do aceite e responde 202 sem esperar pelo registro
+- [x] Despachante HTTP entrega em segundo plano; `boleto-registro` persiste e simula a registradora
+- [x] Consumidor **idempotente** (reentrega do mesmo comando não duplica) + teste que prova
+- [x] README declara a **garantia de entrega** (at-least-once + idempotência)
+- [x] Decisão provisória: sem broker nesta etapa; outbox HTTP permite migrar para RabbitMQ quando o grupo tiver Docker (ADR-007)
 
 ## E5 — Topologia, retry e DLQ (Aula 6) — *critério 5*
 **Referência:** `aula-05/` (`MessagingConfig`, `application.yml`, `GravacaoListener`), plano aula-06
+**Nota:** o grupo pretende reavaliar RabbitMQ via Docker nesta etapa; a outbox HTTP da E4 não implementa exchange, binding ou DLQ.
 **Conceito:** exchange/binding, ack, backoff, DLQ, poison message.
 **Fazer:**
 - [ ] `registro.ex` → `registro.q` (+ `registro.dlx` → `registro.dlq`)
@@ -126,7 +127,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [ ] Falha **permanente** (mensagem inválida) → DLQ com listener que loga **sem vazar dados** (Sessão 5)
 - [ ] Rejeição de negócio → estado `REJEITADO` (não DLQ)
 - [ ] Prova: mensagem envenenada → 3 tentativas → DLQ; mensagem boa segue
-- [ ] ADR-007 retry/DLQ
+- [ ] ADR-008 retry/DLQ (ou revisar ADR-007 se o grupo optar por unificar as decisões)
 
 ## E6 — Fechamento da base
 - [ ] `README.md` (tema, arquitetura, como rodar, perfil)
