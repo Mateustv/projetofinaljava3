@@ -90,7 +90,7 @@ Capacidade e p95 ainda não foram medidos; a proporção de tráfego e a retenç
 
 `EmissaoAceita`, `BoletoRegistrado`, `RegistroRejeitado` → `id_evento`, `tipo`, `identificador_boleto`, `convenio`, `status`, `data_hora`, `correlation_id`. **Sem dados pessoais.**
 
-E9: intenção junto ao estado em cada banco produtor; publicação JMS persistente/transacional independente; assinaturas duráveis no mesmo broker Artemis. Confirmação perdida pode repetir o mesmo id de evento; consulta invalida idempotentemente, sem projetar dados nem rebaixar por ordem. Correlação inicial usa UUID do boleto; propagação HTTP completa ainda E10. Uma instância de consulta por demonstração; múltiplas instâncias com cache local exigiriam assinaturas exclusivas. [ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md).
+E9: intenção junto ao estado em cada banco produtor; publicação JMS persistente/transacional independente; assinaturas duráveis no mesmo broker Artemis. Confirmação perdida pode repetir o mesmo id de evento; consulta invalida idempotentemente, sem projetar dados nem rebaixar por ordem. E10 propaga UUID v4 validado/gerado no HTTP ao comando/outbox/JMS, evento e consulta; legado sem campo usa UUID do boleto. Correlação não é chave de idempotência e reenvio não reescreve a intenção original. Uma instância de consulta por demonstração; múltiplas instâncias com cache local exigiriam assinaturas exclusivas. [ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md) / [ADR-013](../docs/adr/ADR-013-resiliencia-e-correlacao.md).
 
 ## 7. Auditoria e privacidade
 
@@ -110,6 +110,7 @@ Emissão · Registro · Título · Boleto recém-emitido · Aceite assíncrono �
 4. **Transporte:** E8/E9 usam **Artemis 2.33.0/Jakarta JMS em JVM própria**, journal NIO, comando ANYCAST, eventos MULTICAST com assinaturas duráveis e quarentenas. Sem Docker nem fallback HTTP. [ADR-011](../docs/adr/ADR-011-broker-jvm-artemis.md) substitui o transporte provisório da [ADR-007](../docs/adr/ADR-007-transporte-assincrono.md); [ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md) adiciona eventos.
 5. **Retry/quarentena:** orçamentos separados por fronteira, mínimos 1 s/5 s, ack JMS após commit JPA e erros permanentes transferidos atomicamente. Pendentes antigos preservam UUID/contadores; isolados não são reiniciados. Replay restrito/auditado ainda E11/E12.
 6. **Grupo/escopo:** três integrantes confirmados, nenhum opcional adicional obrigatório; E13 não aplicável. Permanecem pendentes nomes/papéis e controles do perfil didático. Acesso, auditoria e retenção estão no escopo da Sessão 5, não foram dispensados.
+7. **Resiliência/correlação E10:** fontes HTTP da consulta com conexão 2 s/leitura 3 s e circuitos independentes (três falhas nas últimas três chamadas, OPEN 10 s, uma sonda); 404/rejeição 200 não são indisponibilidade. Sem retry HTTP extra; limite de socket não é SLA global. Header de correlação opcional, UUID v4 canônico; inválido -> 400 antes do domínio. Auditoria completa continua E11. [E10](../docs/etapas/E10-resiliencia-e-correlacao.md).
 
 ## 10. Premissas a validar (do documento original)
 

@@ -1,10 +1,11 @@
 package br.com.caixa.cobranca.consulta;
 
+import br.com.caixa.cobranca.http.CorrelacaoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /** Ponto de entrada do bounded context CONSULTA (porta 8083). */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackageClasses = {ConsultaApplication.class, CorrelacaoConfiguration.class})
 public class ConsultaApplication {
 
     public static void main(String[] args) {

@@ -17,6 +17,15 @@
     <!-- Sem banco proprio no MVP: a consulta usa os contextos de registro e emissao (ADR-004). -->
     <dependencies>
         <dependency>
+            <groupId>br.com.caixa.cobranca</groupId>
+            <artifactId>infraestrutura-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-artemis</artifactId>
         </dependency>

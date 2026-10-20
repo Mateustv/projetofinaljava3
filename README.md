@@ -4,7 +4,7 @@ Projeto final em grupo — BE-JV-010 (Nível III). Escopo: **CORE**.
 
 ## Situação e próximos passos
 
-E0–E9 implementadas; **o trabalho ainda não está concluído**. O [roteiro final](ROTEIRO.md) faz o de/para de todas as aulas, do exemplo PIX e da rubrica, e planeja até a E15. Próxima implementação: **E10 — resiliência e correlação ponta a ponta**. Depois vêm acesso/auditoria e recuperação operacional.
+E0–E10 implementadas; **o trabalho ainda não está concluído**. O [roteiro final](ROTEIRO.md) faz o de/para de todas as aulas, do exemplo PIX e da rubrica, e planeja até a E15. Próxima implementação: **E11 — controle de acesso, privacidade e auditoria**. Depois vêm recuperação/retenção e aceite integrado.
 
 O **fechamento ficou para E15**, somente após os testes de aceite integrado da E14 e a conclusão dos requisitos aplicáveis. A [rastreabilidade das histórias](requisitos/user-stories.md) e a [autoavaliação](AVALIACAO.md) distinguem o que já tem evidência do que ainda está planejado. Eventos, auditoria, proteção e retenção fazem parte do tema. O grupo tem **três integrantes**, sem opcionais adicionais obrigatórios; E13 não se aplica.
 
@@ -12,7 +12,7 @@ O **fechamento ficou para E15**, somente após os testes de aceite integrado da 
 Empresas emitem cobranças e não sabem se foram apenas recebidas, registradas ou rejeitadas. A Central **aceita** a emissão de forma assíncrona (202), **registra** o título numa registradora simulada por outbox e fila durável Artemis e permite **consultar** o estado com cache. Não movimenta dinheiro. Detalhes: [`requisitos/`](requisitos/README.md).
 
 ## Arquitetura (resumo)
-3 serviços com bases segregadas + `shared-contracts` + infraestrutura reutilizável `eventos-outbox` + broker JVM em processo próprio. Ver [`docs/arquitetura.md`](docs/arquitetura.md) e [`docs/adr/`](docs/adr/).
+3 serviços com bases segregadas + `shared-contracts` + infraestrutura reutilizável `eventos-outbox`/`infraestrutura-http` + broker JVM em processo próprio. Ver [`docs/arquitetura.md`](docs/arquitetura.md) e [`docs/adr/`](docs/adr/).
 
 ## Perfil de execução
 **Plano B (pura-JVM, sem Docker)** — definitivo para a entrega. Comandos e eventos usam **Apache ActiveMQ Artemis 2.33.0**, Jakarta JMS e armazenamento NIO. E9 adiciona pub/sub durável, outbox nos dois produtores e invalidação de cache. Não há fallback HTTP automático. Ver [ADR-011](docs/adr/ADR-011-broker-jvm-artemis.md), [operação/migração E8](docs/etapas/E8-broker-jvm.md) e [E9](docs/etapas/E9-eventos-e-cache.md). Perfis A/C no Maven são referências conceituais, não infraestruturas operacionais.
@@ -55,7 +55,7 @@ Para preferir `mvn -pl ... spring-boot:run` nos serviços, execute antes `mvn -B
 
 ## Contratos executáveis (E6)
 
-`mvn -B clean verify` executa os testes e o PACT **consulta ↔ registro**, sem Docker ou serviços previamente iniciados. Os testes E8/E9 iniciam brokers reais isolados com journal temporário; nenhum teste depende de broker externo. O consumidor usa o cliente REST real; o provedor sobe HTTP real com H2 em memória; uma comparação no Failsafe impede que o pact gerado divirja do [contrato canônico](shared-contracts/pacts/boleto-consulta-boleto-registro.json). Apenas `mvn test` não executa essa comparação final. Último build limpo E9: **214 testes aprovados**, incluindo PACT. Histórico: [E6](docs/etapas/E6-contratos-pact.md), [E7](docs/etapas/E7-contrato-funcional.md), [E8](docs/etapas/E8-broker-jvm.md) e [E9](docs/etapas/E9-eventos-e-cache.md).
+`mvn -B clean verify` executa os testes e o PACT **consulta ↔ registro**, sem Docker ou serviços previamente iniciados. Os testes iniciam brokers reais isolados com journal temporário; nenhum teste depende de broker externo. O consumidor usa o cliente REST real; o provedor sobe HTTP real com H2 em memória; uma comparação no Failsafe impede que o pact gerado divirja do [contrato canônico](shared-contracts/pacts/boleto-consulta-boleto-registro.json). Apenas `mvn test` não executa essa comparação final. Último build limpo E10: **265 testes aprovados**, incluindo PACT. Histórico: [E6](docs/etapas/E6-contratos-pact.md), [E7](docs/etapas/E7-contrato-funcional.md), [E8](docs/etapas/E8-broker-jvm.md), [E9](docs/etapas/E9-eventos-e-cache.md) e [E10](docs/etapas/E10-resiliencia-e-correlacao.md).
 
 ## Contrato funcional e dados de demonstração (E7)
 
@@ -73,7 +73,7 @@ Rejeição de negócio é persistida como `REJEITADO` e confirma o processamento
 Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotência; o limite de retry não garante registro eventual durante falhas prolongadas. Não há endpoint de replay: comandos isolados/quarentenados precisam de análise antes de reprocessamento seguro na E12. Broker somente em loopback, sem autenticação nesta etapa; endpoints `/interno/...` devem ficar em rede confiável. Não expor fora da máquina antes da E11.
 
 ## Documentação do processo
-- [`ROTEIRO.md`](ROTEIRO.md) — histórico E0–E9, de/para completo e etapas até E15; fechamento por último
+- [`ROTEIRO.md`](ROTEIRO.md) — histórico E0–E10, de/para completo e etapas até E15; fechamento por último
 - [`docs/etapas/`](docs/etapas/) — o que foi feito e o que aprendemos em cada etapa (inclui [E2](docs/etapas/E2-idempotencia.md), [E3](docs/etapas/E3-consulta-e-cache.md), [E4](docs/etapas/E4-comunicacao-assincrona.md) e [E5](docs/etapas/E5-resiliencia-outbox.md))
 - [`docs/validacao-pendente.md`](docs/validacao-pendente.md) — resultados e testes manuais pendentes
 - [`AVALIACAO.md`](AVALIACAO.md) — auto-avaliação por critério
@@ -81,12 +81,21 @@ Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotênci
 - [E7 — contrato funcional](docs/etapas/E7-contrato-funcional.md) — matriz de campos, dados não pagáveis, histórico e recuperação idempotente
 - [E8 — broker JVM](docs/etapas/E8-broker-jvm.md) — execução, migração, retry/quarentena e evidências em processos separados
 - [E9 — eventos e cache](docs/etapas/E9-eventos-e-cache.md) — três eventos mínimos, outbox local atômica, assinaturas independentes e invalidação coordenada com leitura
+- [E10 — resiliência e correlação](docs/etapas/E10-resiliencia-e-correlacao.md) — limites por fronteira, circuitos independentes, header validado e propagação persistida
 
 ## Eventos e cache (E9)
 
 Emissor grava `EmissaoAceita` junto ao aceite/comando; registro grava `BoletoRegistrado` ou `RegistroRejeitado` junto ao resultado/histórico. Publicadores independentes confirmam no broker antes de concluir cada intenção. Eventos finais na assinatura durável da consulta invalidam o cache antes do ack, inclusive diante de preenchimento concorrente; TTL continua como proteção. Duplicatas e eventos fora de ordem não projetam nem rebaixam estados.
 
-**Uma instância de cada serviço na demonstração.** Outras instâncias de consulta com cache local precisam de assinatura durável exclusiva, não de consumidores concorrentes na mesma fila. Envelope mínimo sem dados pessoais; correlação HTTP completa ainda E10. Não há backfill de eventos legados nem replay automático de isolados. Retenção/proteção continuam E11/E12. Detalhes e testes: [E9](docs/etapas/E9-eventos-e-cache.md).
+**Uma instância de cada serviço na demonstração.** Outras instâncias de consulta com cache local precisam de assinatura durável exclusiva, não de consumidores concorrentes na mesma fila. Envelope mínimo sem dados pessoais; E10 propaga correlação HTTP validada ao comando/eventos. Não há backfill de eventos legados nem replay automático de isolados. Retenção/proteção continuam E11/E12. Detalhes e testes: [E9](docs/etapas/E9-eventos-e-cache.md).
+
+## Resiliência e correlação (E10)
+
+GETs internos da consulta têm limites explícitos de conexão **2 s** e leitura **3 s**, sem redirect automático ou retry de aplicação. Cada fonte tem seu circuito Resilience4j: três falhas técnicas nas últimas três chamadas abrem por **10 s**; depois há uma única sonda. Sucesso/404 válido fecha, falha reabre. Circuito aberto retorna 503, nunca 404 nem registro fictício; fallback ao emissor continua exclusivo de 404 do registro. Cache hit não chama a fonte.
+
+Os três serviços aceitam `X-Correlation-ID` opcional: ausente gera UUID v4; informado exige UUID v4 canônico em minúsculas, variante 2, sem espaços nem headers duplicados. Inválido retorna 400. O header de resposta é preservado inclusive nos erros/cache hit. O mesmo id atravessa comando/outbox/JMS, registro/eventos e chamadas HTTP internas; ele não integra a chave de idempotência. Consultas/reenvios têm seu id de requisição, sem reescrever a correlação da intenção original.
+
+Não há novo processo ou variável obrigatória. Na consulta, `integracoes.connect-timeout-ms` e `integracoes.read-timeout-ms` aceitam apenas valores positivos. Limites de socket não são deadline global nem prova de p95; registradora continua simulada/local. Inventário, exemplo de header, compatibilidade com comandos antigos e evidências: [E10](docs/etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](docs/adr/ADR-013-resiliencia-e-correlacao.md).
 
 ## Uso de IA
 Ver `AVALIACAO.md` §8 e `docs/etapas/`.

@@ -27,7 +27,8 @@ public class JmsRegistroCommandPublisher implements RegistroCommandPublisher {
 
     @Override
     public void publicar(RegistrarBoletoCommand comando) {
-        if (comando == null || comando.identificador() == null) {
+        if (comando == null || comando.identificador() == null || comando.correlationId() == null
+                || comando.correlationId().version() != 4 || comando.correlationId().variant() != 2) {
             throw new MessageConversionException("Comando de registro sem identificador.");
         }
         final String json;
@@ -42,7 +43,7 @@ public class JmsRegistroCommandPublisher implements RegistroCommandPublisher {
                 browser.getEnumeration();
             }
             var message = session.createTextMessage(json);
-            message.setJMSCorrelationID(comando.identificador().toString());
+            message.setJMSCorrelationID(comando.correlationId().toString());
             message.setStringProperty("identificador_boleto", comando.identificador().toString());
             return message;
         });

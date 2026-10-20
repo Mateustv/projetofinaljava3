@@ -1,6 +1,7 @@
 package br.com.caixa.cobranca.registro;
 
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.DeliveryMode;
@@ -40,10 +41,20 @@ public class RegistroCommandListener {
                 return;
             }
             var comando = mapper.readValue(texto.getText(), RegistrarBoletoCommand.class);
-            var resultado = service.registrar(comando);
-            LOGGER.info("Comando processado. identificador={}, status={}, duplicado={}, entrega={}",
-                    resultado.boleto().identificador(), resultado.boleto().status(),
-                    resultado.duplicado(), message.getIntProperty("JMSXDeliveryCount"));
+            if (comando == null || comando.correlationId() == null
+                    || comando.correlationId().version() != 4 || comando.correlationId().variant() != 2
+                    || (message.getJMSCorrelationID() != null
+                    && !comando.correlationId().toString().equals(message.getJMSCorrelationID()))) {
+                throw new ComandoRegistroInvalidoException();
+            }
+            try (var escopo = Correlacao.abrir(comando.correlationId())) {
+                LOGGER.info("Comando recebido. identificador={}, correlation_id={}",
+                        comando.identificador(), comando.correlationId());
+                var resultado = service.registrar(comando);
+                LOGGER.info("Comando processado. identificador={}, status={}, duplicado={}, entrega={}, correlation_id={}",
+                        resultado.boleto().identificador(), resultado.boleto().status(),
+                        resultado.duplicado(), message.getIntProperty("JMSXDeliveryCount"), comando.correlationId());
+            }
         } catch (JsonProcessingException | ComandoRegistroInvalidoException | ComandoRegistroConflitanteException ex) {
             isolar(message, session, ex.getClass().getSimpleName());
         }
@@ -73,7 +84,6 @@ public class RegistroCommandListener {
         try (var producer = session.createProducer(fila)) {
             producer.send(copia, DeliveryMode.PERSISTENT, 4, 0);
         }
-        LOGGER.warn("Mensagem encaminhada para quarentena. mensagem={}, tipo={}",
-                mensagemOriginal, tipo);
+        LOGGER.warn("Mensagem encaminhada para quarentena. mensagem={}, tipo={}", mensagemOriginal, tipo);
     }
 }

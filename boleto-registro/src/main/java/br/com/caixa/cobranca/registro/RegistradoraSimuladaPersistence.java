@@ -30,7 +30,7 @@ public class RegistradoraSimuladaPersistence {
             String json = objectMapper.writeValueAsString(comando);
             var existente = repository.findById(comando.identificador());
             if (existente.isPresent()) {
-                if (!existente.get().getComandoJson().equals(json)) {
+                if (!ConteudoComando.igual(objectMapper, existente.get().getComandoJson(), json)) {
                     throw new ComandoRegistroConflitanteException();
                 }
                 return objectMapper.readValue(existente.get().getResultadoJson(), ResultadoRegistradora.class);

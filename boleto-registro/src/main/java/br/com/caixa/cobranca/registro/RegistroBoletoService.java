@@ -76,7 +76,7 @@ public class RegistroBoletoService {
     }
 
     private BoletoConsulta verificarDuplicata(RegistroBoletoEntity existente, String comandoJson) {
-        if (!existente.getComandoJson().equals(comandoJson)) {
+        if (!ConteudoComando.igual(objectMapper, existente.getComandoJson(), comandoJson)) {
             throw new ComandoRegistroConflitanteException();
         }
         return existente.comoConsulta();
@@ -92,6 +92,9 @@ public class RegistroBoletoService {
                 || comando.aceite().dataHoraRecebimento() == null
                 || comando.identificador().version() != 4
                 || comando.identificador().variant() != 2
+                || comando.correlationId() == null
+                || comando.correlationId().version() != 4
+                || comando.correlationId().variant() != 2
                 || !validator.validar(comando.solicitacao()).isEmpty()) {
             throw new ComandoRegistroInvalidoException();
         }

@@ -11,6 +11,8 @@ spring:
     property-naming-strategy: SNAKE_CASE
 
 integracoes:
+  connect-timeout-ms: 2000
+  read-timeout-ms: 3000
   registro:
     base-url: http://localhost:8082
   emissor:

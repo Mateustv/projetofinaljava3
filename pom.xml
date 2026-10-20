@@ -21,6 +21,7 @@
     <!-- Ordem importa: shared-contracts primeiro, pois os servicos dependem dele. -->
     <modules>
         <module>shared-contracts</module>
+        <module>infraestrutura-http</module>
         <module>eventos-outbox</module>
         <module>cobranca-broker</module>
         <module>boleto-emissor</module>
@@ -37,6 +38,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>br.com.caixa.cobranca</groupId>
+                <artifactId>infraestrutura-http</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>br.com.caixa.cobranca</groupId>
                 <artifactId>eventos-outbox</artifactId>

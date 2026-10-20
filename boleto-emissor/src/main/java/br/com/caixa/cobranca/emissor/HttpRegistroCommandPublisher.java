@@ -1,6 +1,7 @@
 package br.com.caixa.cobranca.emissor;
 
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
+import br.com.caixa.cobranca.http.Correlacao;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -24,6 +25,7 @@ public class HttpRegistroCommandPublisher implements RegistroCommandPublisher {
     public void publicar(RegistrarBoletoCommand comando) {
         var resposta = restClient.post()
                 .uri(registroUrl + "/interno/comandos/registro")
+                .header(Correlacao.HEADER, comando.correlationId().toString())
                 .body(comando)
                 .retrieve()
                 .toBodilessEntity();

@@ -43,15 +43,18 @@ Comandos migraram na E8; eventos e invalidação foram entregues na E9. Não há
 | E2 — Idempotência (`etapa-2`) | Aceite persistido; mesma chave/conteúdo repete resposta; conflito 409 | Histórico de novos resultados completado na E7; auditoria completa continua E11 |
 | E3 — Consulta/cache (`etapa-3`) | Cache-aside Caffeine, TTL por estado, fallback C e 400/404/503 distintos | TTL provisório; complementado por invalidação na E9 |
 | E4 — Assíncrono adaptado (`etapa-4`) | Outbox transacional de comando e consumidor HTTP idempotente | Transporte substituído na E8; outbox de eventos adicionada na E9 |
-| E5 — Resiliência HTTP (`etapa-5`) | Três tentativas totais, backoff 1 s/5 s, timeouts do produtor, isolamento e `REJEITADO` | DLQ de broker adicionada na E8; breaker/replay continuam E10/E12 |
+| E5 — Resiliência HTTP (`etapa-5`) | Três tentativas totais, backoff 1 s/5 s, timeouts do produtor, isolamento e `REJEITADO` | DLQ de broker E8 e breaker HTTP E10; replay continua E12 |
 | E6 — Contratos executáveis | PACT consulta ↔ registro: três interações, provedor HTTP/H2 e comparação automática do gerado com o canônico | Atualizado na E7 com dados não pagáveis; autorização ainda E11 |
 | E7 — Contrato funcional | Matriz validada nas duas fronteiras, novos dados não pagáveis/histórico e ledger idempotente da registradora simulada | Finais antigos preservados sem inventar dados retroativos; registradora real fora do MVP |
 | E8 — Broker JVM | Artemis em processo próprio, fila/quarentena duráveis, confirmação, retry, migração e recuperação após reinício | Eventos complementados na E9; autenticação/TLS E11 e replay auditado E12 |
-| E9 — Eventos e cache | Três eventos mínimos, outbox local nos produtores, pub/sub durável e invalidação coordenada com leitura | Uma instância por serviço; correlação HTTP E10, proteção E11 e recuperação E12 |
+| E9 — Eventos e cache | Três eventos mínimos, outbox local nos produtores, pub/sub durável e invalidação coordenada com leitura | Uma instância por serviço; correlação complementada na E10, proteção E11 e recuperação E12 |
+| E10 — Resiliência e correlação | Timeouts e circuitos independentes nas fontes HTTP; correlação validada em HTTP, comando/outbox/JMS/eventos e consulta | Limites de socket, não SLA global; registradora local; acesso/auditoria E11 e operação E12 |
 
-**Última validação registrada:** `mvn -B clean verify` com **214 testes**, sem falhas/erros/ignorados (12 broker, 17 eventos-outbox, 96 emissor, 65 registro, 23 consulta Surefire e 1 Failsafe). [E9](docs/etapas/E9-eventos-e-cache.md) cobre atomicidade, pub/sub, recuperação e corrida do cache. A [E8](docs/etapas/E8-broker-jvm.md) comprova quatro JVMs para comandos/reinício; os testes E9 não são nova prova de quatro processos. Não é carga nem substitui E14. Contagens anteriores permanecem no histórico de cada etapa.
+**Última validação registrada:** `mvn -B clean verify` com **265 testes**, sem falhas/erros/ignorados (19 infraestrutura-http, 12 broker, 17 eventos-outbox, 97 emissor, 69 registro, 50 consulta Surefire e 1 Failsafe). [E10](docs/etapas/E10-resiliencia-e-correlacao.md) cobre circuitos com clock controlado, timeout HTTP real e correlação nas fronteiras persistentes. A [E8](docs/etapas/E8-broker-jvm.md) comprova quatro JVMs para comandos/reinício; os testes posteriores não são nova prova de quatro processos. Não é carga nem substitui E14. Contagens anteriores permanecem no histórico de cada etapa.
 
 Os marcos e tags E0–E5 permanecem intactos. A antiga **“E6 — Fechamento da base” foi substituída**: E6 passa a ser contratos, e o fechamento foi movido para E15.
+
+**Controle de versões:** E6–E9 foram consolidadas no commit `529bd5d`, preservando a versão validada. A partir da E10, cada etapa deve ter seu próprio commit após implementação/testes/documentação, antes de começar a próxima. Informar hash e resumo ao concluir; não fazer push nem reverter/descartar alterações sem solicitação do usuário.
 
 ## 3. De/para: aulas e projeto PIX → boletos
 
@@ -66,7 +69,7 @@ As pastas do gabarito não seguem a mesma numeração dos planos de aula:
 | Aula 5 — Assíncrono | [Estado aula-04](../projeto-guiado-pix/gabarito/aula-04/ESTADO.md), publisher/listener | Outbox de comando + consumidor de registro | E8: fila Artemis durável substituiu HTTP provisório |
 | Aula 6 — RabbitMQ | [Estado aula-05](../projeto-guiado-pix/gabarito/aula-05/ESTADO.md), exchange/binding, ack, retry/DLQ | Entrega confirmada, retry, quarentena e reentrega | E8: padrões validados na topologia Artemis, sem exigir RabbitMQ |
 | Aula 7 — Eventos/Kafka | [Estado aula-06](../projeto-guiado-pix/gabarito/aula-06/ESTADO.md), evento e notificação | Eventos mínimos após aceite e resultado; assinantes independentes | E9 entregue pelo broker JVM; Kafka/múltiplos grupos fora do escopo escolhido |
-| Aula 8 — Resiliência | [Estado aula-07](../projeto-guiado-pix/gabarito/aula-07/ESTADO.md), `@RetryableTopic` e breaker | Proteção das dependências remotas; falha não vira sucesso | Retry parcial existe; timeout/breaker e recuperação — E10 |
+| Aula 8 — Resiliência | [Estado aula-07](../projeto-guiado-pix/gabarito/aula-07/ESTADO.md), `@RetryableTopic` e breaker | Proteção das dependências remotas; falha não vira sucesso | E10 entregue: limites HTTP, circuitos independentes, correlação e recuperação de circuito; replay operacional E12 |
 | Aula 8 — PACT | [Estado aula-08](../projeto-guiado-pix/gabarito/aula-08/ESTADO.md), consumidor consulta e provedor gravador | Consumidor consulta e provedor registro | E6 entregue: geração, verificação e proteção contra artefato desatualizado |
 | Aula 9 — Defesa | [Guia da banca](../../plano-de-aulas/aula-09-aluno.md) | Demo, autoavaliação, decisões e uso crítico de IA | Apenas depois dos testes de aceite — E15 |
 
@@ -90,9 +93,9 @@ Pesos abaixo seguem o **brief do trabalho final**, somando 100. O material da Au
 | 2 | Assíncrono — 15 | E8: fila/JMS e prova entre processos; E9: fatos mínimos em pub/sub durável, dois assinantes independentes de teste | Aceite integrado final | E14 |
 | 3 | Idempotência/consistência — 12 | Chaves, fingerprint, ledger E7; E9: intenção atômica de eventos, rollback e reentrega por mesmo id | Replay operacional e recuperação integrada | E12, E14 |
 | 4 | Cache — 10 | TTL, fallback, não cachear 404/erro; E9 invalidação final e corrida de preenchimento testada | Expiração/carga real e isolamento de acesso em cache hit | E11, E14 |
-| 5 | Resiliência — 12 | E8: retry/backoff por fronteira, isolamento produtor e quarentena do broker | Breaker/timeouts nas dependências e recuperação operacional | E10, E12 |
-| 6 | Testabilidade — 13 | E9: PACT preservado, 214 testes em build limpo sem Docker; atomicidade/pubsub/cache concorrente com broker real | Manter contratos nas próximas mudanças; jornadas integradas | E11, E14 |
-| 7 | ADRs — 13 | ADR-001…012 com alternativas e atualização da política de cache | Atualizar decisões novas e divergências com requisitos | E10–E14, consolidar E15 |
+| 5 | Resiliência — 12 | E8: retry/backoff/isolamento/quarentena; E10: limites HTTP, breaker independente e recuperação testada sem retry aninhado | Recuperação operacional e jornadas integradas | E12, E14 |
+| 6 | Testabilidade — 13 | E10: PACT preservado, 265 testes sem Docker; clock controlado, HTTP local real, correlação com Artemis/H2 | Manter contratos nas próximas mudanças; jornadas integradas | E11, E14 |
+| 7 | ADRs — 13 | ADR-001…013 com alternativas e decisões de cache/resiliência/correlação | Atualizar decisões novas e divergências com requisitos | E11–E14, consolidar E15 |
 | 8 | Uso crítico de IA — 5 | Histórico por etapas e commits | Registrar contribuição humana, falhas encontradas, decisões revistas e validações reais | Durante etapas; consolidar E15 |
 | 9 | Execução comprovada — 5 | Execução E0–E4 e testes E5 registrados | Reprodução por outro integrante, artefatos finais, demo e instruções sem dependências implícitas | E14, E15 |
 
@@ -107,8 +110,8 @@ Não atribuir nível 3 automaticamente por existir código. A autoavaliação pr
 | US-05 — cache | E9: evento final invalida; corrida de preenchimento coberta, TTL preservado | Acesso inclusive cache hit E11; p95/expiração e jornada E14 |
 | US-06/07 — retry/quarentena | E8: três publicações/entregas por fronteira, 1 s/5 s e quarentena Artemis validados; substitui premissa 1/2/4 | Recuperação restrita/auditada E12, sem reescrever histórico das sessões |
 | US-08 — idempotência do consumidor | E7: ledger simulado por UUID em transação independente; perda de resposta/rollback recuperados sem duplicar efeito ou histórico | Não promete idempotência de banco externo real; replay E12 e recuperação integrada E14 |
-| US-09 / Sessão 4 — eventos | E9: três eventos mínimos, intenção atômica nos produtores, assinaturas independentes e reinício cobertos | Correlação HTTP E10; acesso/recuperação E11/E12; jornada E14 |
-| US-10 / Sessão 5 — auditoria | Logs pontuais e correlation ID no erro da consulta, sem trilha completa | Correlação ponta a ponta E10; auditoria de emissão/consulta/transição/replay E11/E12 |
+| US-09 / Sessão 4 — eventos | E9: três eventos mínimos/intenções/assinaturas; E10: correlação HTTP validada até eventos e invalidação | Acesso/recuperação E11/E12; jornada E14 |
+| US-10 / Sessão 5 — auditoria | E10: correlação propagada e logs mínimos; não é trilha de auditoria completa | Auditoria de emissão/consulta/transição/replay E11/E12 |
 | US-11 / Sessão 5 — proteção | Endpoints internos sem autenticação; cache e base sem isolamento de convênio implementado | Autorização, proteção entre serviços, minimização, gestão de segredos e proteção de armazenamento — E11 |
 | US-12 / Sessão 5 — retenção | Hipótese de cinco anos apenas documentada | Formalizar marco, escopo por canal, acesso e validações necessárias — E12; expurgo automático continua fora do MVP |
 
@@ -188,20 +191,20 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [x] Restrição: uma instância de cada serviço. Múltiplas consultas com cache local exigem assinaturas exclusivas por instância; mesma fila não difunde invalidação.
 - [x] ADR-006 complementada pela ADR-012; execução, migração e limites na [E9](docs/etapas/E9-eventos-e-cache.md). Sem notificação efetiva, baixa ou liquidação.
 
-**Aceite atendido:** intenção atômica ao estado, publicação independente com recuperação/isolamento, assinante independente e invalidação final coordenada com leitura. Eventos legados não são inventados. Correlação HTTP completa E10, proteção E11, recuperação E12 e aceite integrado E14 continuam pendentes.
+**Aceite atendido:** intenção atômica ao estado, publicação independente com recuperação/isolamento, assinante independente e invalidação final coordenada com leitura. Eventos legados não são inventados. Correlação HTTP complementada na E10; proteção E11, recuperação E12 e aceite integrado E14 continuam pendentes.
 
 ### E10 — Resiliência das dependências e correlação ponta a ponta
 
 **Referência:** [Resiliência do exemplo](../projeto-guiado-pix/gabarito/aula-07/ESTADO.md), Aula 8. Critério 5; base para observabilidade.
 
-- [ ] Inventariar limites de conexão/leitura em todas as chamadas remotas, especialmente clientes da consulta; o timeout do produtor já existe.
-- [ ] Circuit breaker na fronteira remota justificada; definir limiar, abertura, meia-abertura e recuperação com testes.
-- [ ] Estado aberto/falha técnica não pode virar 404, registro fictício ou confirmação de entrega; rejeição de negócio não deve contar como indisponibilidade.
-- [ ] Não empilhar retry escondido do cliente com retry da outbox ou redelivery do broker. Definir e testar orçamento de tentativas por fronteira e destino de quarentena, sem exigir Kafka/`@RetryableTopic`.
-- [ ] Propagar um correlation ID validado por entrada HTTP, comando/outbox, registro, eventos e consulta, inclusive erros; sem alterar a chave de idempotência.
-- [ ] Testes determinísticos de falha temporária/permanente, abertura/recuperação e ausência de chamadas durante circuito aberto.
+- [x] Inventário na [E10](docs/etapas/E10-resiliencia-e-correlacao.md): HTTP da consulta 2 s conexão/3 s leitura, JMS preservado, adaptador HTTP antigo inativo 2 s/5 s; registradora local não simula timeout remoto.
+- [x] Circuitos Resilience4j independentes por fonte: últimas três chamadas/minimo três/100% de falhas; OPEN 10 s; única sonda HALF_OPEN; sucesso fecha, falha reabre.
+- [x] Circuito aberto/falha técnica -> 503, sem fallback indevido/sucesso. 404 e rejeição 200 são disponibilidade, inclusive para recuperar a sonda.
+- [x] Sem retry HTTP de aplicação ou redirect; uma chamada por fonte, segunda só após 404. Outboxes/redelivery preservam três tentativas/entregas e 1 s/5 s por fronteira; sem Kafka/`@RetryableTopic`.
+- [x] Header UUID v4 validado/gerado nos três serviços; preservado em respostas/erros/cache hit, comando/outbox/JMS, eventos e chamadas HTTP internas. Contexto limpo entre threads/pedidos; metadado excluído da identidade de negócio, com legados cobertos.
+- [x] Testes de falhas exatas, clock controlado/limiar/espera/sonda/recuperação, ausência de chamada OPEN, timeout/redirect HTTP reais e correlação nas fronteiras JMS/JPA. `clean verify`: 265 testes e PACT aprovados.
 
-**Pronto quando:** falhas têm tempo limitado e rastreabilidade entre serviços, sem sucesso falso nem duplicação indevida de tentativas.
+**Aceite atendido:** limites de socket explícitos e rastreabilidade nas fronteiras, sem sucesso falso nem retry adicional de aplicação. Não é deadline global ou registradora HTTP real. Evidências, migração e alternativas na [E10](docs/etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](docs/adr/ADR-013-resiliencia-e-correlacao.md). Próxima E11; E14/E15 continuam pendentes.
 
 ### E11 — Controle de acesso, privacidade e auditoria
 

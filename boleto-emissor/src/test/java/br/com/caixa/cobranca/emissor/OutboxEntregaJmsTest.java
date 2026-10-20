@@ -4,6 +4,9 @@ import br.com.caixa.cobranca.broker.BrokerApplication;
 import br.com.caixa.cobranca.contracts.BoletoAceito;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.contracts.StatusBoleto;
+import br.com.caixa.cobranca.contracts.EventoBoleto;
+import br.com.caixa.cobranca.eventos.EventoOutboxRepository;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
@@ -16,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.jms.core.JmsTemplate;
 
 import java.nio.file.Path;
@@ -26,8 +31,11 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:outbox-jms;DB_CLOSE_DELAY=-1")
+@AutoConfigureMockMvc
 class OutboxEntregaJmsTest {
 
     @TempDir
@@ -36,6 +44,10 @@ class OutboxEntregaJmsTest {
     ComandoRegistroOutboxRepository repository;
     @Autowired
     ObjectMapper mapper;
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    EventoOutboxRepository eventos;
     private ActiveMQServer server;
     private ActiveMQConnectionFactory factory;
     private RegistroCommandPublisher publisher;
@@ -54,6 +66,44 @@ class OutboxEntregaJmsTest {
     void parar() throws Exception {
         factory.close();
         server.stop();
+    }
+
+    @Test
+    void correlacaoHttpPersisteNasDuasIntencoesEJmsSemAlterarIdempotencia() throws Exception {
+        UUID correlation = UUID.randomUUID();
+        String corpo = BoletoControllerTest.corpo("123456",
+                "E10-" + UUID.randomUUID().toString().substring(0, 12), "150.00");
+        var response = mvc.perform(post("/boletos").contentType("application/json").content(corpo)
+                        .header(Correlacao.HEADER, correlation.toString()))
+                .andExpect(status().isAccepted())
+                .andExpect(header().string(Correlacao.HEADER, correlation.toString())).andReturn();
+        UUID id = UUID.fromString(mapper.readTree(response.getResponse().getContentAsString()).get("identificador").asText());
+        var comando = mapper.readValue(repository.findById(id).orElseThrow().getComandoJson(), RegistrarBoletoCommand.class);
+        assertEquals(correlation, comando.correlationId());
+        var evento = eventos.findAll().stream()
+                .filter(item -> item.getIdentificadorBoleto().equals(id)).findFirst().orElseThrow();
+        assertEquals(correlation, mapper.readValue(evento.getEventoJson(), EventoBoleto.class).correlationId());
+        UUID repeticao = UUID.randomUUID();
+        mvc.perform(post("/boletos").contentType("application/json").content(corpo)
+                        .header(Correlacao.HEADER, repeticao.toString()))
+                .andExpect(status().isAccepted())
+                .andExpect(header().string(Correlacao.HEADER, repeticao.toString()))
+                .andExpect(jsonPath("$.identificador").value(id.toString()));
+        assertEquals(1, repository.count());
+        assertEquals(correlation, mapper.readValue(repository.findById(id).orElseThrow()
+                .getComandoJson(), RegistrarBoletoCommand.class).correlationId());
+        publisher.publicar(comando);
+        try (var connection = factory.createConnection();
+             var session = connection.createSession(true, Session.SESSION_TRANSACTED);
+             var consumer = session.createConsumer(session.createQueue(BrokerApplication.COMANDOS))) {
+            connection.start();
+            var message = (TextMessage) consumer.receive(3000);
+            assertNotNull(message);
+            assertEquals(correlation.toString(), message.getJMSCorrelationID());
+            assertEquals(comando, mapper.readValue(message.getText(), RegistrarBoletoCommand.class));
+            session.commit();
+        }
+        assertNull(Correlacao.atualOu(null));
     }
 
     @Test

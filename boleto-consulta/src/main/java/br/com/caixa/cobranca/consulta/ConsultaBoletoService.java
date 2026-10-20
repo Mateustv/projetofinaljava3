@@ -61,13 +61,7 @@ public class ConsultaBoletoService {
     }
 
     private BoletoConsulta normalizar(BoletoConsulta boleto, UUID identificador, String fonte) {
-        if (boleto == null || boleto.identificador() == null || boleto.status() == null
-                || !identificador.equals(boleto.identificador())) {
-            throw new FalhaFonteBoletoException(fonte, new IllegalStateException("Resposta inconsistente."));
-        }
-        if (fonte.equals("emissor") && boleto.status() != br.com.caixa.cobranca.contracts.StatusBoleto.AGUARDANDO_REGISTRO) {
-            throw new FalhaFonteBoletoException(fonte, new IllegalStateException("Estado inesperado no aceite."));
-        }
+        BoletoFonteClient.validarResposta(boleto, identificador, fonte);
         return fonte.equals("emissor") ? BoletoConsulta.aguardando(boleto) : BoletoConsulta.somenteEstado(boleto);
     }
 }

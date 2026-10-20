@@ -6,6 +6,7 @@ import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
 import br.com.caixa.cobranca.eventos.EventoOutboxService;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,9 @@ public class EmissaoPersistenceService {
                 recebimento
         ));
 
-        RegistrarBoletoCommand comando = new RegistrarBoletoCommand(aceite.identificador(), aceite, request);
+        UUID correlationId = Correlacao.atualOu(aceite.identificador());
+        RegistrarBoletoCommand comando = new RegistrarBoletoCommand(
+                aceite.identificador(), aceite, request, correlationId);
         try {
             outboxRepository.saveAndFlush(new ComandoRegistroOutboxEntity(
                     aceite.identificador(),
@@ -61,7 +64,7 @@ public class EmissaoPersistenceService {
         }
 
         eventos.adicionar(new EventoBoleto(UUID.randomUUID(), TipoEventoBoleto.EmissaoAceita,
-                aceite.identificador(), request.convenio(), aceite.status(), recebimento, aceite.identificador()));
+                aceite.identificador(), request.convenio(), aceite.status(), recebimento, correlationId));
         return aceite;
     }
 }

@@ -115,11 +115,11 @@ O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite com
 | US-03 | 1, 4 | E7 — dados não pagáveis/histórico; E8 — fila durável Artemis e prova em processos separados | E14: jornadas integradas | 1, 2 |
 | US-04 | 3 | E3/E5 — consulta por estado; E6/E7 — PACT e dados simulados atualizados | E11: autorização; E14: aceite | 4, 6 |
 | US-05 | 3 | E3 — cache-aside/TTL; E9 — invalidação final e corrida com preenchimento testada | E11: acesso inclusive cache hit; E14: p95/expiração e aceite integrado | 4 |
-| US-06 | 4 | E8 — publicação limitada na outbox e redelivery do broker; mínimos 1 s/5 s por fronteira | E10: resiliência das demais dependências | 5 |
+| US-06 | 4 | E8 — publicação/redelivery limitados por fronteira; E10 — limites HTTP, circuitos independentes e recuperação sem retry extra | E12: recuperação operacional; E14: jornadas finais | 5 |
 | US-07 | 4 | E8 — isolamento produtor e DLQ Artemis durável; transferência atômica de inválidos | E11/E12: acesso e reprocessamento auditado | 5 |
 | US-08 | 4 | E4 — consumidor idempotente; E7 — ledger externo simulado, resposta perdida/rollback recuperáveis | E12/E14: replay operacional e recuperação integrada | 3 |
-| US-09 | 4 | E9 — três eventos mínimos, outbox local de aceite/resultado, assinaturas duráveis independentes e reinício | E10: correlação HTTP; E11/E12: proteção e recuperação; E14: aceite integrado | 2, 3 |
-| US-10 | 5 | Logs parciais, sem trilha completa | E10: correlação; E11/E12: auditoria e replay | 7, 9 |
+| US-09 | 4 | E9 — três eventos/outbox/assinaturas; E10 — correlação HTTP validada e preservada até eventos/invalidação | E11/E12: proteção e recuperação; E14: aceite integrado | 2, 3 |
+| US-10 | 5 | E10 — correlação ponta a ponta e logs mínimos, sem trilha completa | E11/E12: auditoria e replay | 7, 9 |
 | US-11 | 5 | Sem autorização implementada | E11: proteção de todos os canais; E14: testes de acesso | 1, 7 |
 | US-12 | 5 | Premissa de retenção documentada | E12: política, marco e limites; expurgo automático fora do MVP | 7 |
 

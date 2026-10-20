@@ -2,6 +2,7 @@ package br.com.caixa.cobranca.registro;
 
 import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
+import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.eventos.EventoOutboxEntity;
 import br.com.caixa.cobranca.eventos.EventoOutboxRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,6 +77,43 @@ class EventosRegistroTest {
         assertEquals(2, jdbc.queryForObject("select count(*) from registro_historico", Integer.class));
         assertNull(intencao.getPublicadoEm());
         verify(registradora, times(1)).registrar(comando);
+    }
+
+    @Test
+    void mudancaDeCorrelacaoNaoMudaIdentidadeNemRepeteEfeitoOuEvento() throws Exception {
+        var base = RegistroComandoControllerTest.comando(UUID.randomUUID(), "150.00");
+        UUID correlation = UUID.randomUUID();
+        var comando = new RegistrarBoletoCommand(base.identificador(), base.aceite(), base.solicitacao(), correlation);
+        var original = service.registrar(comando);
+        var outraCorrelacao = new RegistrarBoletoCommand(
+                base.identificador(), base.aceite(), base.solicitacao(), UUID.randomUUID());
+        assertEquals(original.boleto(), service.registrar(outraCorrelacao).boleto());
+        assertEquals(1, eventos.count());
+        assertEquals(correlation, mapper.readValue(eventos.findAll().get(0).getEventoJson(), EventoBoleto.class).correlationId());
+        assertEquals(1, operacoes.count());
+        assertEquals(original.boleto().status(),
+                simulacao.registrar(outraCorrelacao, RegistradoraSimulada.Cenario.REJEITAR).status());
+        verify(registradora, times(1)).registrar(comando);
+    }
+
+    @Test
+    void comandoLegadoSemCampoCorrelationContinuaIdempotente() throws Exception {
+        var comando = RegistroComandoControllerTest.comando(UUID.randomUUID(), "150.00");
+        var json = mapper.valueToTree(comando);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) json).remove("correlation_id");
+        var legado = mapper.treeToValue(json, RegistrarBoletoCommand.class);
+        assertEquals(comando.identificador(), legado.correlationId());
+        service.registrar(legado);
+        jdbc.update("update boleto_registrado set comando_json = ? where identificador = ?",
+                mapper.writeValueAsString(json), comando.identificador());
+        jdbc.update("update registradora_simulada_operacao set comando_json = ? where identificador = ?",
+                mapper.writeValueAsString(json), comando.identificador());
+        var novo = new RegistrarBoletoCommand(comando.identificador(), comando.aceite(),
+                comando.solicitacao(), UUID.randomUUID());
+        assertTrue(service.registrar(novo).duplicado());
+        assertEquals(1, eventos.count());
+        assertNotNull(simulacao.registrar(novo, RegistradoraSimulada.Cenario.APROVAR));
+        assertEquals(1, operacoes.count());
     }
 
     @Test

@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import br.com.caixa.cobranca.http.Correlacao;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,6 +55,41 @@ class ConsultaBoletoControllerTest {
     @BeforeEach
     void limparCache() {
         cacheManager.getCache(ConsultaCacheConfiguration.CACHE_BOLETOS).clear();
+    }
+
+    @Test
+    void cacheHitRespondeComCorrelacaoDaRequisicaoAtualSemVazarDaAnterior() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(registro.buscar(id)).thenReturn(new BoletoConsulta(
+                id, StatusBoleto.REGISTRADO, LocalDateTime.now(), null, null, null, null, null, null));
+        for (int i = 0; i < 2; i++) {
+            UUID correlation = UUID.randomUUID();
+            mvc.perform(get("/boletos/{identificador}", id).header(Correlacao.HEADER, correlation.toString()))
+                    .andExpect(status().isOk()).andExpect(header().string(Correlacao.HEADER, correlation.toString()));
+            assertEquals(null, Correlacao.atualOu(null));
+        }
+        verify(registro, times(1)).buscar(id);
+    }
+
+    @Test
+    void erroUsaCorrelacaoDaEntradaESemFallbackTecnico() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID correlation = UUID.randomUUID();
+        when(registro.buscar(id)).thenThrow(new FalhaFonteBoletoException("registro", new IllegalStateException()));
+        mvc.perform(get("/boletos/{identificador}", id).header(Correlacao.HEADER, correlation.toString()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(Correlacao.HEADER, correlation.toString()))
+                .andExpect(jsonPath("$.correlation_id").value(correlation.toString()));
+        verify(emissor, never()).buscar(id);
+    }
+
+    @Test
+    void correlacaoInvalidaRecusadaAntesDeCacheOuFontes() throws Exception {
+        UUID id = UUID.randomUUID();
+        mvc.perform(get("/boletos/{identificador}", id).header(Correlacao.HEADER, "texto-nao-validado"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("CORRELACAO_INVALIDA"));
+        verify(registro, never()).buscar(id);
+        verify(emissor, never()).buscar(id);
     }
 
     @Test

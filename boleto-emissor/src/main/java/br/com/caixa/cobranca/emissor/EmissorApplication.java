@@ -1,12 +1,14 @@
 package br.com.caixa.cobranca.emissor;
 
 import br.com.caixa.cobranca.eventos.EventosOutboxConfiguration;
+import br.com.caixa.cobranca.http.CorrelacaoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /** Ponto de entrada do bounded context EMISSAO (porta 8081). */
-@SpringBootApplication(scanBasePackageClasses = {EmissorApplication.class, EventosOutboxConfiguration.class})
+@SpringBootApplication(scanBasePackageClasses = {
+        EmissorApplication.class, EventosOutboxConfiguration.class, CorrelacaoConfiguration.class})
 @EnableScheduling
 public class EmissorApplication {
 

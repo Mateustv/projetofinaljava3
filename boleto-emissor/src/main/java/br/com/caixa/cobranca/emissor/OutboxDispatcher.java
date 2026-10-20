@@ -71,8 +71,8 @@ public class OutboxDispatcher {
                 publisher.publicar(comando);
                 outbox.registrarEntrega(agora());
                 repository.save(outbox);
-                LOGGER.info("Publicacao confirmada. identificador={}, tentativa={}",
-                        outbox.getIdentificador(), outbox.getTentativas());
+                LOGGER.info("Publicacao confirmada. identificador={}, tentativa={}, correlation_id={}",
+                        outbox.getIdentificador(), outbox.getTentativas(), comando.correlationId());
             } catch (JsonProcessingException ex) {
                 outbox.registrarFalha("JSON_INVALIDO", true, agora());
                 repository.save(outbox);

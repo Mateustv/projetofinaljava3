@@ -1,6 +1,6 @@
 # Arquitetura — Central de Cobrança e Boletos
 
-> **Estado: E9, comandos e eventos por Artemis em JVM própria.** Domínio/ledger E7 e PACT preservados. Outbox de eventos nos produtores e invalidação coordenada de cache; sem Docker. Evidências: [E8](etapas/E8-broker-jvm.md) / [E9](etapas/E9-eventos-e-cache.md).
+> **Estado: E10, comandos/eventos por Artemis, limites HTTP e correlação.** Domínio/ledger E7, PACT, outbox de eventos e cache coordenado preservados; sem Docker. Evidências: [E8](etapas/E8-broker-jvm.md), [E9](etapas/E9-eventos-e-cache.md) e [E10](etapas/E10-resiliencia-e-correlacao.md).
 
 ## Serviços (bounded contexts)
 
@@ -11,6 +11,7 @@
 | `boleto-consulta` | 8083 | sem base (ADR-004, opção C) | Consulta por identificador, fallback e cache |
 | `shared-contracts` | — | — | Records/DTOs, eventos mínimos, pact canônico e validação estrutural; sem Spring/JPA |
 | `eventos-outbox` | — | tabelas nos H2 dos produtores | Infraestrutura técnica reutilizada, não é serviço nem banco compartilhado |
+| `infraestrutura-http` | — | — | Filtro/contexto de correlação comum aos três serviços, sem JPA/negócio |
 | `cobranca-broker` | 61616 | Journal NIO próprio | Comandos/quarentenas e pub/sub durável de eventos; somente loopback |
 
 ## Diagrama de contextos
@@ -72,4 +73,12 @@ Não há promessa de registro eventual após isolamento nem replay automático. 
 
 E9 complementa TTL com invalidação após `BoletoRegistrado`/`RegistroRejeitado`. Mesmas 64 travas coordenam cache miss/preenchimento e remoção antes do ack; resposta em voo pode ser transitória, mas não reinstala cache antigo depois da confirmação. Evento mínimo não constrói resposta completa; próxima leitura busca a fonte. Duplicatas/fora de ordem só repetem remoção.
 
-**Uma instância de cada serviço na demonstração.** Cada instância adicional de consulta com cache local exigiria assinatura durável própria, não consumidor concorrente na mesma fila. Intenções ficam nos bancos locais, são publicadas com confirmação/retry/isolamento independentes e não recebem backfill retroativo. Correlação dos eventos usa inicialmente UUID do boleto; propagação HTTP completa E10. Operação e testes na [E9](etapas/E9-eventos-e-cache.md).
+**Uma instância de cada serviço na demonstração.** Cada instância adicional de consulta com cache local exigiria assinatura durável própria, não consumidor concorrente na mesma fila. Intenções ficam nos bancos locais, são publicadas com confirmação/retry/isolamento independentes e não recebem backfill retroativo. E10 propaga correlação HTTP validada; legados sem campo usam UUID do boleto. Operação e testes na [E9](etapas/E9-eventos-e-cache.md) / [E10](etapas/E10-resiliencia-e-correlacao.md).
+
+## Resiliência e rastreabilidade (E10)
+
+Cada fonte HTTP da consulta possui circuito Resilience4j independente: janela de três chamadas/minimo três, 100% de falhas técnicas abre por 10 s, uma sonda meia-aberta. Sucesso/404 fecha; falha reabre. Conexão 2 s/leitura 3 s, sem redirect ou retry de aplicação. OPEN/falha técnica -> 503, não 404 nem fallback; cache hit continua disponível. Registradora permanece chamada Java local; retry de outbox/redelivery JMS não mudou.
+
+Filtro comum valida/gera UUID v4 no `X-Correlation-ID`, responde o mesmo header inclusive nos erros e limpa contexto/MDC ao sair. Emissão persiste o id no comando/evento; JMS e registro preservam até evento final e invalidação. GETs internos usam a correlação do pedido atual, não do preenchimento anterior do cache. Registro/ledger excluem somente metadado de correlação ao comparar negócio; reenvio não repete efeito. Header JMS presente deve coincidir com envelope, sob pena de quarentena.
+
+Circuito é local, não persistido; limites de socket não são deadline global. Logs mínimos/correlação não substituem auditoria/autorização E11. Inventário, alternativas e compatibilidade na [ADR-013](adr/ADR-013-resiliencia-e-correlacao.md); jornadas finais continuam E14.

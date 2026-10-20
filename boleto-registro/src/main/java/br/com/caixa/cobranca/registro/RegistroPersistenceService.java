@@ -45,7 +45,7 @@ public class RegistroPersistenceService {
                     resultado.status() == StatusBoleto.REGISTRADO
                             ? TipoEventoBoleto.BoletoRegistrado : TipoEventoBoleto.RegistroRejeitado,
                     comando.identificador(), comando.solicitacao().convenio(), resultado.status(),
-                    LocalDateTime.now().truncatedTo(ChronoUnit.MICROS), comando.identificador()));
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MICROS), comando.correlationId()));
             return entidade;
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             throw new FalhaAoRegistrarBoletoException(ex);

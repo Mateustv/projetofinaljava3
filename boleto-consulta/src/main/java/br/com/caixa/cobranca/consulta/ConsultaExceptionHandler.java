@@ -1,5 +1,6 @@
 package br.com.caixa.cobranca.consulta;
 
+import br.com.caixa.cobranca.http.Correlacao;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -7,10 +8,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class ConsultaExceptionHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsultaExceptionHandler.class);
     @ExceptionHandler(BoletoNaoEncontradoException.class)
     public ResponseEntity<Void> naoEncontrado() {
         return ResponseEntity.notFound().build();
@@ -19,12 +23,14 @@ public class ConsultaExceptionHandler {
     @ExceptionHandler(IdentificadorBoletoInvalidoException.class)
     public ResponseEntity<ErroConsulta> identificadorInvalido(IdentificadorBoletoInvalidoException ex) {
         return ResponseEntity.badRequest()
-                .body(new ErroConsulta("IDENTIFICADOR_INVALIDO", ex.getMessage(), null));
+                .body(new ErroConsulta("IDENTIFICADOR_INVALIDO", ex.getMessage(), Correlacao.atualOu(UUID.randomUUID())));
     }
 
     @ExceptionHandler(FalhaFonteBoletoException.class)
     public ResponseEntity<ErroConsulta> falhaTecnica(FalhaFonteBoletoException ex) {
-        UUID correlationId = UUID.randomUUID();
+        UUID correlationId = Correlacao.atualOu(UUID.randomUUID());
+        LOGGER.warn("Consulta indisponivel. correlation_id={}, tipo={}", correlationId,
+                ex.getCause() == null ? ex.getClass().getSimpleName() : ex.getCause().getClass().getSimpleName());
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-Correlation-ID", correlationId.toString());
         return new ResponseEntity<>(

@@ -4,6 +4,7 @@ import br.com.caixa.cobranca.broker.BrokerApplication;
 import br.com.caixa.cobranca.contracts.BoletoConsulta;
 import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
@@ -105,6 +106,49 @@ class ConsultaEventosTest {
         assertEquals(resultado.status(), consulta.consultar(id).status());
         verify(registro, times(2)).buscar(id);
         verify(emissor, times(1)).buscar(id);
+    }
+
+    @Test
+    void correlacaoDoEventoAlcancaInvalidacaoESaiDaThreadDepoisDaEntrega() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID correlation = UUID.randomUUID();
+        var evento = new EventoBoleto(UUID.randomUUID(), TipoEventoBoleto.BoletoRegistrado,
+                id, "123456", TipoEventoBoleto.BoletoRegistrado.status(), LocalDateTime.now(), correlation);
+        doAnswer(invocation -> {
+            assertEquals(correlation, Correlacao.atualOu(null));
+            return invocation.callRealMethod();
+        }).when(consulta).invalidar(id);
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            assertNull(Correlacao.atualOu(null));
+            return null;
+        }).when(listener).receber(any(), any());
+        enviar(evento);
+        listeners.start();
+        aguardarFilaVazia();
+        verify(consulta).invalidar(id);
+    }
+
+    @Test
+    void correlacaoJmsDivergenteDoEventoNaoInvalidaCache() throws Exception {
+        var evento = evento(UUID.randomUUID(), TipoEventoBoleto.BoletoRegistrado);
+        try (var connection = factory.createConnection();
+             var session = connection.createSession(true, Session.SESSION_TRANSACTED);
+             var producer = session.createProducer(session.createTopic(BrokerApplication.EVENTOS));
+             var dlq = session.createConsumer(session.createQueue(BrokerApplication.EVENTOS_QUARENTENA))) {
+            var message = session.createTextMessage(mapper.writeValueAsString(evento));
+            message.setJMSCorrelationID(UUID.randomUUID().toString());
+            producer.send(message);
+            session.commit();
+            listeners.start();
+            connection.start();
+            var isolado = (TextMessage) dlq.receive(5000);
+            assertNotNull(isolado);
+            assertEquals("EVENTO_INVALIDO", isolado.getStringProperty("tipo_erro"));
+            session.commit();
+        }
+        aguardarFilaVazia();
+        verify(consulta, never()).invalidar(any());
     }
 
     @Test

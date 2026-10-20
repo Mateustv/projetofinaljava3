@@ -3,6 +3,10 @@ package br.com.caixa.cobranca.registro;
 import br.com.caixa.cobranca.broker.BrokerApplication;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.contracts.StatusBoleto;
+import br.com.caixa.cobranca.contracts.EventoBoleto;
+import br.com.caixa.cobranca.eventos.EventoOutboxRepository;
+import br.com.caixa.cobranca.eventos.EventoOutboxDispatcher;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
@@ -26,8 +30,10 @@ import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jms.config.JmsListenerEndpointRegistry;
+import org.springframework.jms.core.JmsTemplate;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -57,6 +63,8 @@ class RegistroEntregaJmsTest {
     RegistradoraSimuladaPersistence simulacao;
     @Autowired
     JdbcTemplate jdbc;
+    @Autowired
+    EventoOutboxRepository eventos;
     @SpyBean
     RegistroBoletoRepository repository;
     @SpyBean
@@ -82,6 +90,8 @@ class RegistroEntregaJmsTest {
         listeners.stop();
         server.locateQueue(new SimpleString(BrokerApplication.COMANDOS)).deleteAllReferences();
         server.locateQueue(new SimpleString(BrokerApplication.QUARENTENA)).deleteAllReferences();
+        server.locateQueue(new SimpleString(BrokerApplication.EVENTOS_CONSULTA)).deleteAllReferences();
+        eventos.deleteAll();
         repository.deleteAll();
         operacoes.deleteAll();
         clearInvocations(repository, registradora, listener);
@@ -90,6 +100,77 @@ class RegistroEntregaJmsTest {
     @AfterEach
     void pararConsumidor() {
         listeners.stop();
+    }
+
+    @Test
+    void correlacaoAtravessaComandoJmsResultadoIntencaoEEventoJms() throws Exception {
+        var base = comando();
+        UUID correlation = UUID.randomUUID();
+        var comando = new RegistrarBoletoCommand(base.identificador(), base.aceite(), base.solicitacao(), correlation);
+        doAnswer(invocation -> {
+            assertEquals(correlation, Correlacao.atualOu(null));
+            return invocation.callRealMethod();
+        }).when(registradora).registrar(comando);
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            assertNull(Correlacao.atualOu(null));
+            return null;
+        }).when(listener).receber(any(), any());
+        try (var connection = factory.createConnection();
+             var session = connection.createSession(true, Session.SESSION_TRANSACTED);
+             var producer = session.createProducer(session.createQueue(BrokerApplication.COMANDOS))) {
+            var message = session.createTextMessage(mapper.writeValueAsString(comando));
+            message.setJMSCorrelationID(correlation.toString());
+            producer.send(message);
+            session.commit();
+        }
+        listeners.start();
+        aguardarFilaVazia();
+        var intencao = eventos.findAll().get(0);
+        assertEquals(correlation, mapper.readValue(intencao.getEventoJson(), EventoBoleto.class).correlationId());
+        var jms = new JmsTemplate(factory);
+        jms.setPubSubDomain(true);
+        jms.setSessionTransacted(true);
+        jms.setExplicitQosEnabled(true);
+        jms.setDeliveryPersistent(true);
+        new EventoOutboxDispatcher(eventos, mapper, jms, Clock.systemDefaultZone()).publicarPendentes();
+        assertNotNull(eventos.findById(intencao.getIdEvento()).orElseThrow().getPublicadoEm());
+        try (var connection = factory.createConnection();
+             var session = connection.createSession(true, Session.SESSION_TRANSACTED);
+             var consumer = session.createConsumer(session.createQueue(
+                     BrokerApplication.EVENTOS + "::" + BrokerApplication.EVENTOS_CONSULTA))) {
+            connection.start();
+            var message = (TextMessage) consumer.receive(3000);
+            assertNotNull(message);
+            assertEquals(correlation.toString(), message.getJMSCorrelationID());
+            assertEquals(correlation, mapper.readValue(message.getText(), EventoBoleto.class).correlationId());
+            session.commit();
+        }
+    }
+
+    @Test
+    void correlacaoJmsDivergenteDoEnvelopeVaiParaQuarentena() throws Exception {
+        var comando = comando();
+        try (var connection = factory.createConnection();
+             var session = connection.createSession(true, Session.SESSION_TRANSACTED);
+             var producer = session.createProducer(session.createQueue(BrokerApplication.COMANDOS));
+             var dlq = session.createConsumer(session.createQueue(BrokerApplication.QUARENTENA))) {
+            var message = session.createTextMessage(mapper.writeValueAsString(comando));
+            message.setJMSCorrelationID(UUID.randomUUID().toString());
+            producer.send(message);
+            session.commit();
+            listeners.start();
+            connection.start();
+            var isolado = (TextMessage) dlq.receive(5000);
+            assertNotNull(isolado);
+            assertEquals(message.getText(), isolado.getText());
+            assertEquals("ComandoRegistroInvalidoException", isolado.getStringProperty("tipo_erro"));
+            session.commit();
+        }
+        aguardarFilaVazia();
+        assertEquals(0, repository.count());
+        assertEquals(0, eventos.count());
+        assertEquals(0, operacoes.count());
     }
 
     @Test

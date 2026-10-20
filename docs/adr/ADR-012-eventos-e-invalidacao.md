@@ -12,7 +12,7 @@ A Sessao 4 exige `EmissaoAceita`, `BoletoRegistrado` e `RegistroRejeitado`, sem 
 - Consulta invalida apos evento final, nao projeta dados de pagamento do evento. Duplicatas/fora de ordem apenas repetem invalidacao, sem rebaixar estados. TTL 30 s/10 min continua protecao.
 - Leitura/preenchimento e invalidacao usam a mesma trava por faixa de UUID para evitar instalar um transitório depois da invalidacao. A entrega aguarda a leitura em andamento terminar, invalida e so entao confirma JMS. Uma resposta em voo pode ser antiga; a proxima leitura nao reutiliza esse preenchimento.
 - Uma instancia de consulta por demonstracao. Mais instancias com cache local exigem uma assinatura duravel exclusiva por instancia; consumidores concorrentes na mesma fila nao difundem invalidacao.
-- Correlacao inicial usa UUID do boleto, estavel entre comando e eventos. Propagacao de identificador recebido no HTTP e validacao ponta a ponta continuam E10; nao alegar que ja existem.
+- Na E9, correlacao inicial usa UUID do boleto. **Atualizacao E10:** a [ADR-013](ADR-013-resiliencia-e-correlacao.md) propaga id HTTP validado ao comando/outbox/eventos e as consultas internas; pendencias legadas sem campo continuam usando UUID do boleto. Identidade de negocio nao inclui correlacao.
 
 ## Alternativas
 

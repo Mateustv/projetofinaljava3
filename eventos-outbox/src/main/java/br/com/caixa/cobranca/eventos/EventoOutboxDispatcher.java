@@ -50,8 +50,8 @@ public class EventoOutboxDispatcher {
                     return message;
                 });
                 item.confirmar(agora());
-                LOGGER.info("Evento publicado. idEvento={}, identificador={}, tentativa={}",
-                        item.getIdEvento(), item.getIdentificadorBoleto(), item.getTentativas());
+                LOGGER.info("Evento publicado. idEvento={}, identificador={}, tentativa={}, correlation_id={}",
+                        item.getIdEvento(), item.getIdentificadorBoleto(), item.getTentativas(), evento.correlationId());
             } catch (JsonProcessingException | IllegalArgumentException ex) {
                 item.falhar("EVENTO_INVALIDO", true, agora());
                 registrarFalha(item);

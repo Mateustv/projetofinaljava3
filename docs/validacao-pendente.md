@@ -217,4 +217,21 @@ Na E8, a próxima entrega era E9, validada abaixo. Proteção E11, replay/reten�
 
 Operação, matriz e restrições: [E9](etapas/E9-eventos-e-cache.md), [ADR-012](adr/ADR-012-eventos-e-invalidacao.md). Testes de eventos usam Artemis/H2 reais, mas fontes HTTP simuladas na consulta; não são nova prova de quatro JVMs. Execução integrada completa e reprodução por outro integrante continuam E14. Uma instância de cada serviço; consultas adicionais com cache local precisariam de assinaturas exclusivas.
 
-Próxima entrega **E10**: resiliência das dependências e correlação ponta a ponta. Sem fechamento antecipado; E15 somente após E14.
+Na E9, a próxima entrega era E10, validada abaixo. Sem fechamento antecipado; E15 somente após E14.
+
+## Validação da E10 — Resiliência e correlação
+
+- [x] Inventário de todas as fronteiras: consulta HTTP 2 s conexão/3 s leitura; parâmetros positivos; redirect automático desligado. JMS/retentativas persistidas preservados. Registradora continua local; timeout de registradora externa não é funcionalidade comprovada.
+- [x] Circuitos Resilience4j independentes por fonte: janela/minimo de três e 100% de falhas; OPEN 10 s; uma sonda HALF_OPEN. Clock controlado prova bloqueio antes da espera, recuperação depois, sonda única, reabertura por falha e nenhuma chamada remota quando aberto.
+- [x] HTTP 4xx/5xx, timeout e resposta inválida nunca viram 404/sucesso; nenhuma tentativa extra de aplicação. Ausência 404 e rejeição 200 são disponibilidade, inclusive para fechar a sonda. Fallback somente depois de 404; cache hit continua disponível com circuito aberto e erro não é cacheado.
+- [x] Servidor HTTP local real comprova timeout de leitura e ausência de redirect automático. Limites de socket não são deadline global ou medição de p95/carga.
+- [x] Filtro dos três serviços valida/gera UUID v4 e devolve `X-Correlation-ID` em sucesso/erro/cache hit. Valores não canônicos, duplicados ou inválidos são recusados antes do domínio. Contexto/MDC limpos em erro e entre threads.
+- [x] POST/MVC real -> JPA aceite/comando/evento -> comando JMS conserva correlação; reenvio com outro header repete mesmo boleto e preserva intenção original.
+- [x] Comando JMS -> escopo de registro -> resultado/intenção -> evento JMS preserva correlação. Evento -> escopo de invalidação; contexto limpo depois da entrega. Header JMS divergente do envelope vai para quarentena sem efeito de negócio/cache.
+- [x] Correlação excluída da identidade de negócio: mudar apenas o metadado não duplica resultado, ledger ou evento; JSON legado sem campo continua idempotente.
+- [x] GETs internos encaminham a mesma correlação às duas fontes no fallback. Erro 503 da consulta tem o mesmo id no header/corpo; cache hit usa id do pedido atual.
+- [x] `mvn -B clean verify`: **BUILD SUCCESS, 265 testes**, zero falhas/erros/ignorados: **19 infraestrutura-http, 12 broker, 17 eventos-outbox, 97 emissor, 69 registro, 50 consulta Surefire + 1 Failsafe**. PACT e regressão E1–E9 preservados.
+
+Matriz, operação e limites na [E10](etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](adr/ADR-013-resiliencia-e-correlacao.md). Não é nova prova de quatro JVMs nem auditoria/autorização completa. E10 tem commit próprio sem push; as próximas etapas devem seguir o mesmo padrão.
+
+Próxima entrega **E11**: controle de acesso, privacidade e auditoria. E12 recuperação/retenção, E14 jornadas finais e E15 fechamento continuam pendentes.

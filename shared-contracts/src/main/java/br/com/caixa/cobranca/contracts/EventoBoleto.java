@@ -10,7 +10,7 @@ public record EventoBoleto(UUID idEvento, TipoEventoBoleto tipo, UUID identifica
     public EventoBoleto {
         if (!uuidV4(idEvento) || !uuidV4(identificadorBoleto) || tipo == null
                 || convenio == null || !convenio.matches("[0-9]{6}")
-                || status != tipo.status() || dataHora == null || correlationId == null) {
+                || status != tipo.status() || dataHora == null || !uuidV4(correlationId)) {
             throw new IllegalArgumentException("Envelope de evento de boleto invalido.");
         }
     }

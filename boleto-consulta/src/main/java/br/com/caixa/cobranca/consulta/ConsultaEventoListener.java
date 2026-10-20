@@ -2,6 +2,7 @@ package br.com.caixa.cobranca.consulta;
 
 import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
+import br.com.caixa.cobranca.http.Correlacao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.DeliveryMode;
@@ -38,18 +39,22 @@ public class ConsultaEventoListener {
         final EventoBoleto evento;
         try {
             evento = mapper.readValue(texto.getText(), EventoBoleto.class);
-            if (evento == null) {
+            if (evento == null || (message.getJMSCorrelationID() != null
+                    && !evento.correlationId().toString().equals(message.getJMSCorrelationID()))) {
                 throw new IllegalArgumentException("Evento nulo.");
             }
         } catch (JsonProcessingException | IllegalArgumentException ex) {
             isolar(message, session, "EVENTO_INVALIDO");
             return;
         }
-        if (evento.tipo() != TipoEventoBoleto.EmissaoAceita) {
-            consulta.invalidar(evento.identificadorBoleto());
+        try (var escopo = Correlacao.abrir(evento.correlationId())) {
+            LOGGER.info("Evento recebido. idEvento={}, correlation_id={}", evento.idEvento(), evento.correlationId());
+            if (evento.tipo() != TipoEventoBoleto.EmissaoAceita) {
+                consulta.invalidar(evento.identificadorBoleto());
+            }
+            LOGGER.info("Evento consumido. idEvento={}, identificador={}, tipo={}, correlation_id={}",
+                    evento.idEvento(), evento.identificadorBoleto(), evento.tipo(), evento.correlationId());
         }
-        LOGGER.info("Evento consumido. idEvento={}, identificador={}, tipo={}",
-                evento.idEvento(), evento.identificadorBoleto(), evento.tipo());
     }
 
     private void isolar(Message original, Session session, String tipo) throws JMSException {
