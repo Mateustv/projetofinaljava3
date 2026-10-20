@@ -2,6 +2,10 @@
 
 Projeto final em grupo — BE-JV-010 (Nível III). Escopo: **CORE**.
 
+## Comece por aqui
+
+Para entender o projeto sem ter acompanhado sua construção, leia o [guia didático do projeto](docs/guia-do-projeto.md): problema, conceitos, fluxo completo, função das classes, tecnologias, dados, testes e perguntas para a defesa. O guia distingue implementação, simulação e pendências; este README mantém os comandos de execução.
+
 ## Situação e próximos passos
 
 E0–E10 implementadas; a base técnica dos critérios tem evidência. Em 20/10/2026, o usuário informou a orientação do professor de **seguir apenas os critérios de avaliação**. O [novo roteiro](ROTEIRO.md) contém somente três etapas restantes: **F1 — conferir a demonstração final; F2 — concluir documentos/autoavaliação; F3 — fechar a entrega e preparar a defesa**. Não há nova funcionalidade planejada.
