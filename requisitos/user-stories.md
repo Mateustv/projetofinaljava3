@@ -108,7 +108,7 @@ Pagamento/liquidação; alteração, cancelamento, protesto, negativação; baix
 
 O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite completo. As sessões continuam preservadas como histórico; premissas substituídas remetem à decisão vigente.
 
-**Revisão de entrega em 20/10/2026:** o solicitante priorizou o CORE geral, preservando E0–E10. A especificação acima não foi reescrita: requisitos da Sessão 5 ficam **não atendidos integralmente**, conforme [ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md). E11 não implementada; E12 limitada à preparação operacional da demonstração. Sem aprovação docente presumida.
+**Revisão de entrega em 20/10/2026:** após o usuário informar a orientação do professor de seguir apenas os critérios de avaliação, o [roteiro](../ROTEIRO.md) substitui E11–E15 por F1–F3. A especificação acima não foi reescrita: requisitos da Sessão 5 continuam **não implementados integralmente**, mas não bloqueiam a entrega avaliada. E12/carga deixam de ser portões. Referências abaixo a E14 correspondem à conferência enxuta F1, sem exigir p95; não são tarefas adicionais. [ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
 
 | História | Sessão | Base implementada | Complemento/aceite planejado | Critério da rubrica relacionado |
 |---|:-:|---|---|:-:|
@@ -116,8 +116,8 @@ O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite com
 | US-02 | 2 | E2 — chave, fingerprint e conflito; E7 — regressão preservada | E14: jornada integrada | 3 |
 | US-03 | 1, 4 | E7 — dados não pagáveis/histórico; E8 — fila durável Artemis e prova em processos separados | E14: jornadas integradas | 1, 2 |
 | US-04 | 3 | E3/E5 — consulta por estado; E6/E7 — PACT e dados simulados atualizados | E14: aceite; autorização da Sessão 5 não atendida/fora da entrega atual | 4, 6 |
-| US-05 | 3 | E3 — cache-aside/TTL; E9 — invalidação final e corrida com preenchimento testada | E14: p95/expiração e aceite; acesso por convênio inclusive cache hit não atendido | 4 |
-| US-06 | 4 | E8 — publicação/redelivery limitados por fronteira; E10 — limites HTTP, circuitos independentes e recuperação sem retry extra | E12: recuperação operacional; E14: jornadas finais | 5 |
+| US-05 | 3 | E3 — cache-aside/TTL; E9 — invalidação final e corrida com preenchimento testada | F1: demonstração/cache; p95 e controle de acesso não validados, fora dos portões atuais | 4 |
+| US-06 | 4 | E8 — publicação/redelivery limitados por fronteira; E10 — limites HTTP, circuitos independentes e recuperação sem retry extra | F1: selecionar provas existentes de falhas; sem etapa operacional E12 | 5 |
 | US-07 | 4 | E8 — isolamento produtor e DLQ Artemis durável; transferência atômica de inválidos | Parcial: acesso restrito/reprocessamento auditado não atendidos, fora da entrega atual | 5 |
 | US-08 | 4 | E4 — consumidor idempotente; E7 — ledger externo simulado, resposta perdida/rollback recuperáveis | E14: recuperação integrada suportada; replay operacional auditado não entregue | 3 |
 | US-09 | 4 | E9 — três eventos/outbox/assinaturas; E10 — correlação HTTP validada e preservada até eventos/invalidação | E14: aceite integrado; proteção da Sessão 5 não atendida integralmente | 2, 3 |
@@ -125,4 +125,4 @@ O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite com
 | US-11 | 5 | Minimização parcial; sem autorização ou criptografia comprovada | **Não atendida** integralmente; E11 não implementada/fora da entrega atual | 1, 7 |
 | US-12 | 5 | Hipótese de retenção documentada, sem política formal implementada | **Não atendida**; fora da entrega atual; backup local não substitui retenção | 7 |
 
-US-09–12 permanecem **requisitos do tema**, não opcionais automáticos. A ADR-014 registra a redução explícita da entrega pelo solicitante, não elimina a especificação nem comprova aceite de US-10/11/12. E14 reúne evidências do escopo revisado e lacunas; **E15 é o fechamento, somente depois**.
+US-09–12 permanecem **requisitos originais do tema**, não prova de controles existentes. A orientação docente relatada define a avaliação pelos critérios gerais, sem exigir implementação integral dessas histórias. A ADR-014 registra a mudança, sem eliminar a especificação nem comprovar aceite funcional de US-10/11/12. **F3 é o fechamento, após F1/F2**, conforme o roteiro vigente.

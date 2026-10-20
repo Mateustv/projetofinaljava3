@@ -2,6 +2,8 @@
 
 > Os comandos abaixo foram executados na raiz de `projeto-final-grupo`. Os passos já validados estão marcados `[x]`.
 
+> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Esta reorganização é somente documental, com links/whitespace conferidos, sem nova execução funcional. A última revalidação permanece o build limpo com 265 testes aprovado na revisão `b11fad9`; F1–F3 ainda não concluídas.
+
 ## Validação da E0
 
 - [x] **1. Ambiente**

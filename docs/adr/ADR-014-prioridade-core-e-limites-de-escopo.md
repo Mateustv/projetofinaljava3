@@ -10,6 +10,8 @@ Ao iniciar E11 em 20/10/2026, o solicitante escolheu explicitamente **revisar o 
 
 ## Decisao de escopo da entrega
 
+> **Atualizacao posterior em 20/10/2026:** o usuario informou que o professor orientou seguir apenas os criterios de avaliacao. O [novo roteiro](../../ROTEIRO.md) substitui os portoes anteriores: F1 (demonstracao final), F2 (documentos/autoavaliacao) e F3 (entrega/defesa). E12 deixa de ser etapa obrigatoria; copia/restauracao completa, carga/p95 e requisitos adicionais do tema nao bloqueiam a conclusao. As referencias a E12/E14/E15 nos itens originais abaixo ficam como historico da decisao anterior, nao como trabalho ainda exigido. Nao ha nova funcionalidade planejada; preservar E0-E10 e corrigir somente bloqueios reais.
+
 - Preservar E0-E10, inclusive eventos, resiliencia e correlacao ja entregues. Nao remover funcionalidades ou testes por ultrapassarem o CORE minimo.
 - E11 fica **fora da entrega atual, nao implementada**, e nao "concluida" nem "nao aplicavel" como os opcionais E13.
 - Nao implementar nesta entrega autenticacao/autorizacao por convenio, usuarios/papeis, credenciais tecnicas, TLS, criptografia gerenciada ou trilha persistida de auditoria.
@@ -22,7 +24,7 @@ Ao iniciar E11 em 20/10/2026, o solicitante escolheu explicitamente **revisar o 
 
 ## Limites e riscos aceitos no planejamento
 
-A decisao e do solicitante para o planejamento, **nao aprovacao do professor ou dispensa institucional**. Caso o docente exija todos os requisitos do tema, sera necessario retomar E11 e a parte adiada de E12. Nao garantir nota maxima nem pontos adicionais.
+A decisao inicial foi do solicitante. Posteriormente, ele informou a orientacao docente de avaliar apenas pelos criterios gerais; esse relato fundamenta a reorganizacao atual. Nao equivale a aprovacao antecipada da entrega, nota maxima ou conformidade institucional. Requisitos originais nao implementados continuam registrados como tais, mas nao como pendencias do roteiro atual.
 
 Sistema permanece demonstrador local, somente com dados sinteticos, servicos iniciados em loopback conforme README, sem acesso por rede compartilhada ou uso real. Restricao local nao equivale a autenticacao, autorizacao por convenio ou criptografia. Nao foram verificados/ativados volume criptografado, certificados ou mecanismos de seguranca do Windows. A preferencia anteriormente indicada para armazenamento nao representa protecao implementada.
 
@@ -36,4 +38,4 @@ H2/journal/quarentena podem conter payload necessario ao processamento. Nao envi
 
 ## Status
 
-Aceita pelo solicitante para a entrega atual, 20/10/2026. Revisao **somente documental**, sem alteracao de codigo ou nova evidencia de testes funcionais. Ultima versao funcional: E10, commit `0ae4139`, 265 testes aprovados. Substitui o planejamento anterior de E11/E12 e seus portoes, sem reescrever a Sessao 5 ou declarar conformidade.
+Aceita pelo solicitante para a entrega atual, 20/10/2026, e atualizada apos o relato de orientacao docente para seguir somente a rubrica. Revisao **somente documental**, sem alteracao de codigo ou nova evidencia de testes funcionais. Ultima versao funcional: E10, commit `0ae4139`, 265 testes aprovados, revalidados na revisao `b11fad9`. O roteiro F1-F3 substitui os portoes E11-E15, sem reescrever a Sessao 5, marcar exclusoes como implementadas ou declarar conformidade.
