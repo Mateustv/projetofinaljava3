@@ -234,4 +234,16 @@ Na E9, a próxima entrega era E10, validada abaixo. Sem fechamento antecipado; E
 
 Matriz, operação e limites na [E10](etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](adr/ADR-013-resiliencia-e-correlacao.md). Não é nova prova de quatro JVMs nem auditoria/autorização completa. E10 tem commit próprio sem push; as próximas etapas devem seguir o mesmo padrão.
 
-Próxima entrega **E11**: controle de acesso, privacidade e auditoria. E12 recuperação/retenção, E14 jornadas finais e E15 fechamento continuam pendentes.
+Na conclusão da E10, a próxima entrega planejada era E11. A revisão de escopo abaixo substitui essa sequência.
+
+## Revisão após E10 — Prioridade ao CORE geral
+
+- [x] Decisão explícita do solicitante em 20/10/2026: priorizar CORE geral, manter funcionalidades E0–E10 e registrar Sessão 5 como não atendida integralmente.
+- [x] E11 **não implementada**, fora da entrega atual; sem usuários/papéis, autorização por convênio, auditoria persistida, TLS ou criptografia de armazenamento comprovados. Não foi verificada/ativada criptografia do Windows.
+- [x] E12 revisada para preparação operacional local; replay restrito/auditado e retenção formal não atendidos. Não criar replay inseguro nem apresentar backup como política de retenção.
+- [x] README/roteiro/autoavaliação/rastreabilidade atualizados; requisitos originais da Sessão 5 preservados e lacunas explícitas na [ADR-014](adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
+- [ ] E12 revisada: runbook e verificação de cópia/restauração local com dados sintéticos, sem apagar bancos anteriores.
+- [ ] E14: jornadas integradas, build/contratos, cache/falhas/reinício e reprodução do perfil local; registrar controles excluídos como não atendidos, não testes aprovados.
+- [ ] E15: fechamento somente depois, com autoavaliação e limitações reais.
+
+Revisão somente documental, sem alteração de código nem nova execução funcional; permanecem as 265 aprovações registradas na E10 (`0ae4139`). Não há dispensa docente ou garantia de nota. Não expor serviços em rede nem usar dados reais.

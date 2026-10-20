@@ -2,6 +2,8 @@
 
 > **Estado: E10, comandos/eventos por Artemis, limites HTTP e correlação.** Domínio/ledger E7, PACT, outbox de eventos e cache coordenado preservados; sem Docker. Evidências: [E8](etapas/E8-broker-jvm.md), [E9](etapas/E9-eventos-e-cache.md) e [E10](etapas/E10-resiliencia-e-correlacao.md).
 
+> **Escopo revisado:** E11 não implementada/fora da entrega atual, conforme [ADR-014](adr/ADR-014-prioridade-core-e-limites-de-escopo.md). Referências abaixo a E11/E12 descrevem o plano anterior, não controles existentes ou prometidos nesta entrega. Sem autenticação/autorização por convênio, auditoria persistida ou criptografia comprovada; somente dados sintéticos e execução local/loopback. Logs/correlação não são auditoria.
+
 ## Serviços (bounded contexts)
 
 | Serviço | Porta | Base | Responsabilidade |

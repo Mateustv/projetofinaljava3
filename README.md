@@ -4,9 +4,9 @@ Projeto final em grupo — BE-JV-010 (Nível III). Escopo: **CORE**.
 
 ## Situação e próximos passos
 
-E0–E10 implementadas; **o trabalho ainda não está concluído**. O [roteiro final](ROTEIRO.md) faz o de/para de todas as aulas, do exemplo PIX e da rubrica, e planeja até a E15. Próxima implementação: **E11 — controle de acesso, privacidade e auditoria**. Depois vêm recuperação/retenção e aceite integrado.
+E0–E10 implementadas; **o trabalho ainda não está concluído**. Em 20/10/2026, o solicitante decidiu priorizar o **CORE geral**: E11 fica fora da entrega atual, **não implementada**. Próxima etapa: **E12 — preparação operacional mínima da demonstração**, depois aceite integrado E14 e fechamento E15. Decisão e impactos: [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
 
-O **fechamento ficou para E15**, somente após os testes de aceite integrado da E14 e a conclusão dos requisitos aplicáveis. A [rastreabilidade das histórias](requisitos/user-stories.md) e a [autoavaliação](AVALIACAO.md) distinguem o que já tem evidência do que ainda está planejado. Eventos, auditoria, proteção e retenção fazem parte do tema. O grupo tem **três integrantes**, sem opcionais adicionais obrigatórios; E13 não se aplica.
+O **fechamento ficou para E15**, somente após E12 revisada e o aceite integrado E14. A [rastreabilidade](requisitos/user-stories.md) e a [autoavaliação](AVALIACAO.md) registram o que tem evidência e o que não foi atendido. **Sessão 5 não atendida integralmente:** sem autenticação/autorização por convênio, auditoria persistida, proteção criptográfica comprovada ou retenção formal; replay restrito/auditado também não entregue. Isso é redução explícita pelo solicitante, não aprovação docente nem conformidade institucional. O grupo tem **três integrantes**, sem opcionais adicionais obrigatórios; E13 não se aplica.
 
 ## Problema
 Empresas emitem cobranças e não sabem se foram apenas recebidas, registradas ou rejeitadas. A Central **aceita** a emissão de forma assíncrona (202), **registra** o título numa registradora simulada por outbox e fila durável Artemis e permite **consultar** o estado com cache. Não movimenta dinheiro. Detalhes: [`requisitos/`](requisitos/README.md).
@@ -70,7 +70,7 @@ No registro, falha temporária reverte a transação JMS: o broker faz até **tr
 
 Rejeição de negócio é persistida como `REJEITADO` e confirma o processamento; não é falha de transporte. No serviço de registro, a variável `REGISTRADORA_CENARIO` permite simular `APROVAR` (padrão), `REJEITAR` ou `INDISPONIVEL`. Histórico HTTP: [E5](docs/etapas/E5-resiliencia-outbox.md); regras vigentes: [E8](docs/etapas/E8-broker-jvm.md).
 
-Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotência; o limite de retry não garante registro eventual durante falhas prolongadas. Não há endpoint de replay: comandos isolados/quarentenados precisam de análise antes de reprocessamento seguro na E12. Broker somente em loopback, sem autenticação nesta etapa; endpoints `/interno/...` devem ficar em rede confiável. Não expor fora da máquina antes da E11.
+Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotência; o limite de retry não garante registro eventual durante falhas prolongadas. **Não há endpoint de replay**; reprocessamento restrito/auditado ficou fora da entrega atual, não será apresentado como feito na E12. Broker sem autenticação/TLS; APIs sem autorização por convênio. **Uso exclusivamente local, com dados sintéticos e serviços em loopback; não expor em rede nem usar dados reais.** Criptografia de armazenamento não foi verificada/ativada. [Limites de escopo](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
 
 ## Documentação do processo
 - [`ROTEIRO.md`](ROTEIRO.md) — histórico E0–E10, de/para completo e etapas até E15; fechamento por último
@@ -87,7 +87,7 @@ Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotênci
 
 Emissor grava `EmissaoAceita` junto ao aceite/comando; registro grava `BoletoRegistrado` ou `RegistroRejeitado` junto ao resultado/histórico. Publicadores independentes confirmam no broker antes de concluir cada intenção. Eventos finais na assinatura durável da consulta invalidam o cache antes do ack, inclusive diante de preenchimento concorrente; TTL continua como proteção. Duplicatas e eventos fora de ordem não projetam nem rebaixam estados.
 
-**Uma instância de cada serviço na demonstração.** Outras instâncias de consulta com cache local precisam de assinatura durável exclusiva, não de consumidores concorrentes na mesma fila. Envelope mínimo sem dados pessoais; E10 propaga correlação HTTP validada ao comando/eventos. Não há backfill de eventos legados nem replay automático de isolados. Retenção/proteção continuam E11/E12. Detalhes e testes: [E9](docs/etapas/E9-eventos-e-cache.md).
+**Uma instância de cada serviço na demonstração.** Outras instâncias de consulta com cache local precisam de assinatura durável exclusiva, não de consumidores concorrentes na mesma fila. Envelope mínimo sem dados pessoais; E10 propaga correlação HTTP validada ao comando/eventos. Não há backfill de eventos legados nem replay automático de isolados. Retenção/proteção da Sessão 5 não atendidas na entrega atual: [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md). Detalhes dos eventos e testes: [E9](docs/etapas/E9-eventos-e-cache.md).
 
 ## Resiliência e correlação (E10)
 

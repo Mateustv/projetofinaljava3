@@ -5,6 +5,12 @@
 > **O fechamento será a E15 e só começa depois das entregas técnicas e da validação integrada.**
 > Banca prevista no brief: **26/10**. A sequência abaixo é por dependências, não uma promessa de prazo.
 
+## Revisão de escopo pelo solicitante — 20/10/2026
+
+**Priorizar o CORE geral, preservando E0–E10.** E11 fica **não implementada, fora da entrega atual**; requisitos da Sessão 5 são registrados como não atendidos, sem alterar sua especificação. E12 passa a preparação operacional mínima local, sem replay auditado/retenção formal. Próxima etapa E12 revisada, depois E14 e E15; não há fechamento antecipado.
+
+Essa decisão não é aprovação docente nem garantia de nota. Sem autenticação/autorização por convênio, auditoria persistida ou criptografia comprovada: **somente demonstração local com dados sintéticos e serviços em loopback**. Não expor em rede nem alegar conformidade. A [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md) prevalece sobre promessas anteriores de E11/E12; evidências históricas permanecem.
+
 ## Decisões confirmadas pelo grupo — 20/10/2026
 
 - **Sem Docker durante toda a entrega:** perfil B, com aplicações e broker executados em JVM.
@@ -28,7 +34,7 @@ Comandos migraram na E8; eventos e invalidação foram entregues na E9. Não há
 ### Obrigatório, opcional e restrição de ambiente
 
 - **CORE geral:** pelo menos dois serviços com bases segregadas; fluxo assíncrono com fila e consumidor idempotente; cache com estratégia/invalidação; contrato executável; ADRs/README; execução comprovada em um perfil.
-- **Escopo do tema:** as sessões também pedem eventos/outbox do resultado, proteção de acesso, auditoria, retenção formal e reprocessamento restrito. Esses itens não podem continuar escondidos como “opcionais” sem revisão explícita de escopo.
+- **Escopo do tema:** as sessões pedem eventos/outbox, proteção, auditoria, retenção e reprocessamento restrito. Eventos já entregues são preservados; proteção/auditoria/retenção/replay restrito ficam explicitamente não atendidos na entrega atual, conforme revisão do solicitante na ADR-014, não como opcionais automaticamente dispensados.
 - **Opcionais da rubrica:** um item por integrante acima de três. O grupo tem **três integrantes**, portanto não precisa entregar opcionais adicionais; E13 não se aplica.
 - **Sem Docker não significa sem entrega.** E8/E9 usam **broker JVM real**, com persistência, fila, quarentena e pub/sub durável. HTTP E4/E5 fica como histórico, não como equivalente a fila ou fallback.
 - Kafka e múltiplos consumer groups não fazem parte da entrega escolhida. **Publicar os eventos acordados na Sessão 4 continua obrigatório no escopo do tema**, usando o broker JVM e sem exigir semântica de log/replay Kafka.
@@ -91,8 +97,8 @@ Pesos abaixo seguem o **brief do trabalho final**, somando 100. O material da Au
 |---|---|---|---|---|
 | 1 | Decomposição — 15 | Três módulos, H2 segregado, ADR-002/003; E7 matriz/histórico e validação estrutural compartilhada | Provar jornadas completas e limites do perfil | E14 |
 | 2 | Assíncrono — 15 | E8: fila/JMS e prova entre processos; E9: fatos mínimos em pub/sub durável, dois assinantes independentes de teste | Aceite integrado final | E14 |
-| 3 | Idempotência/consistência — 12 | Chaves, fingerprint, ledger E7; E9: intenção atômica de eventos, rollback e reentrega por mesmo id | Replay operacional e recuperação integrada | E12, E14 |
-| 4 | Cache — 10 | TTL, fallback, não cachear 404/erro; E9 invalidação final e corrida de preenchimento testada | Expiração/carga real e isolamento de acesso em cache hit | E11, E14 |
+| 3 | Idempotência/consistência — 12 | Chaves, fingerprint, ledger E7; E9: intenção atômica de eventos, rollback e reentrega por mesmo id | Recuperação integrada; replay auditado não atendido/fora da entrega atual | E12 revisada, E14 |
+| 4 | Cache — 10 | TTL, fallback, não cachear 404/erro; E9 invalidação final e corrida de preenchimento testada | Expiração/carga real; autorização inclusive cache hit não atendida/fora da entrega atual | E14 |
 | 5 | Resiliência — 12 | E8: retry/backoff/isolamento/quarentena; E10: limites HTTP, breaker independente e recuperação testada sem retry aninhado | Recuperação operacional e jornadas integradas | E12, E14 |
 | 6 | Testabilidade — 13 | E10: PACT preservado, 265 testes sem Docker; clock controlado, HTTP local real, correlação com Artemis/H2 | Manter contratos nas próximas mudanças; jornadas integradas | E11, E14 |
 | 7 | ADRs — 13 | ADR-001…013 com alternativas e decisões de cache/resiliência/correlação | Atualizar decisões novas e divergências com requisitos | E11–E14, consolidar E15 |
@@ -106,14 +112,14 @@ Não atribuir nível 3 automaticamente por existir código. A autoavaliação pr
 | História / fonte | Estado observado | Ação planejada |
 |---|---|---|
 | US-01/02 — emissão e idempotência | E7: matriz/validador comum; E8: 202/aceite/outbox preservados e regressão verde no transporte JMS | Manter nas próximas mudanças e jornadas E14 |
-| US-03/04 — registro e consulta | E7: novos aprovados com marcadores não pagáveis; histórico local atômico; PACT/projeção pública atualizados | Finais antigos preservados sem fabricar histórico; autorização E11 e jornadas E14 |
-| US-05 — cache | E9: evento final invalida; corrida de preenchimento coberta, TTL preservado | Acesso inclusive cache hit E11; p95/expiração e jornada E14 |
-| US-06/07 — retry/quarentena | E8: três publicações/entregas por fronteira, 1 s/5 s e quarentena Artemis validados; substitui premissa 1/2/4 | Recuperação restrita/auditada E12, sem reescrever histórico das sessões |
-| US-08 — idempotência do consumidor | E7: ledger simulado por UUID em transação independente; perda de resposta/rollback recuperados sem duplicar efeito ou histórico | Não promete idempotência de banco externo real; replay E12 e recuperação integrada E14 |
-| US-09 / Sessão 4 — eventos | E9: três eventos mínimos/intenções/assinaturas; E10: correlação HTTP validada até eventos e invalidação | Acesso/recuperação E11/E12; jornada E14 |
-| US-10 / Sessão 5 — auditoria | E10: correlação propagada e logs mínimos; não é trilha de auditoria completa | Auditoria de emissão/consulta/transição/replay E11/E12 |
-| US-11 / Sessão 5 — proteção | Endpoints internos sem autenticação; cache e base sem isolamento de convênio implementado | Autorização, proteção entre serviços, minimização, gestão de segredos e proteção de armazenamento — E11 |
-| US-12 / Sessão 5 — retenção | Hipótese de cinco anos apenas documentada | Formalizar marco, escopo por canal, acesso e validações necessárias — E12; expurgo automático continua fora do MVP |
+| US-03/04 — registro e consulta | E7: novos aprovados com marcadores não pagáveis; histórico local atômico; PACT/projeção pública atualizados | Finais antigos preservados; jornadas E14. Autorização da Sessão 5 não atendida |
+| US-05 — cache | E9: evento final invalida; corrida de preenchimento coberta, TTL preservado | p95/expiração e jornada E14; acesso por convênio inclusive cache hit não atendido |
+| US-06/07 — retry/quarentena | E8: três publicações/entregas por fronteira, 1 s/5 s e quarentena Artemis validados; substitui premissa 1/2/4 | Operação local E12 revisada; recuperação restrita/auditada não atendida |
+| US-08 — idempotência do consumidor | E7: ledger simulado por UUID em transação independente; perda de resposta/rollback recuperados sem duplicar efeito ou histórico | Não promete idempotência externa real; recuperação integrada E14, sem replay auditado |
+| US-09 / Sessão 4 — eventos | E9: três eventos mínimos/intenções/assinaturas; E10: correlação HTTP validada até eventos e invalidação | Jornada E14; proteção da Sessão 5 não atendida integralmente |
+| US-10 / Sessão 5 — auditoria | E10: correlação/logs mínimos; trilha persistida não atendida | Fora da entrega atual por decisão ADR-014; não atribuir evidência de auditoria |
+| US-11 / Sessão 5 — proteção | Sem autenticação, autorização por convênio ou criptografia comprovada; minimização parcial existente | Não atendida integralmente; fora da entrega atual. Somente dados sintéticos/loopback |
+| US-12 / Sessão 5 — retenção | Hipótese de cinco anos documentada, sem política formal implementada | Não atendida; fora da entrega atual, não confundir backup com retenção |
 
 **Não confundir regra didática com norma institucional.** Metas de carga/latência, retenção e criptografia real exigem validação; não declarar conformidade de produção só por implementar o perfil de demonstração.
 
@@ -124,12 +130,12 @@ Não atribuir nível 3 automaticamente por existir código. A autoavaliação pr
 | E6 | Contratos executáveis (PACT) | Base E5 | **Concluída — 60 testes no build limpo, incluindo PACT e comparação** |
 | E7 | Completar regras e aceite do domínio | Base E5; atualizar contratos E6 se o formato mudar | **Concluída — matriz, simulação/histórico e 146 testes no build limpo** |
 | E8 | Broker JVM, fila de comandos e quarentena | Base E7; selecionar e validar tecnologia compatível com o ambiente | **Concluída — Artemis, 177 testes e prova em quatro JVMs** |
-| E9 | Eventos confiáveis e invalidação de cache | E7 e E8; adaptar contrato E6 se necessário | Pendente |
-| E10 | Resiliência das dependências e correlação | E8; E9 para cobrir também eventos | Pendente |
-| E11 | Acesso, privacidade e auditoria | E7 e E10; validar efeitos em contratos E6 | Pendente |
-| E12 | Recuperação operacional e retenção | E8, E9 e E11 | Pendente |
+| E9 | Eventos confiáveis e invalidação de cache | E7 e E8; adaptar contrato E6 se necessário | **Concluída — 214 testes no build limpo** |
+| E10 | Resiliência das dependências e correlação | E8; E9 para cobrir também eventos | **Concluída — 265 testes, commit `0ae4139`** |
+| E11 | Acesso, privacidade e auditoria | Revisão de escopo ADR-014 | **Não implementada — fora da entrega atual, requisitos não atendidos** |
+| E12 | Preparação operacional mínima local (escopo revisado) | E8–E10 e limites explícitos ADR-014; sem dependência de E11 | Pendente; sem replay/retenção formal |
 | E13 | Opcionais do grupo | Grupo confirmado com três integrantes | **Não aplicável — nenhum opcional obrigatório** |
-| E14 | Aceite integrado e reprodução da entrega | E6–E12; E13 já registrada como não aplicável | Pendente |
+| E14 | Aceite integrado e reprodução da entrega | E6–E10, E12 revisada e exclusões ADR-014 registradas; E13 não aplicável | Pendente |
 | E15 | **Fechamento e preparação da banca** | E14 aprovada e portão de fechamento atendido | **Bloqueada pelas entregas anteriores** |
 
 A numeração organiza a conversa; atividades independentes podem ocorrer antes. Tamanho do grupo, broker e destino de comandos/eventos já foram decididos. E6 foi validada sem broker; E8 adicionou a infraestrutura real. Não criar tags de etapa concluída enquanto sua prova de aceite estiver pendente.
@@ -208,7 +214,7 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 
 ### E11 — Controle de acesso, privacidade e auditoria
 
-**Fontes:** Sessão 5 e US-10/11. Requisito do tema, não apenas melhoria estética de logs.
+**Estado atual: não implementada, fora da entrega atual por decisão do solicitante (ADR-014).** Checklist original abaixo preservado como requisitos **não atendidos**, não como bloqueio do CORE revisado ou promessa de próxima implementação. Fontes: Sessão 5 e US-10/11. Não é aprovação docente nem dispensa institucional.
 
 - [ ] Definir identidade e autorização do perfil didático: emissor só acessa seus convênios, atendimento consulta conforme permissão, operação inspeciona/reprocessa falhas.
 - [ ] Proteger também os endpoints internos e as comunicações entre serviços; segredos fora do Git e distinção entre identidade do serviço e usuário solicitante.
@@ -218,29 +224,28 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [ ] Definir proteção de transporte/armazenamento e gestão de chaves aplicáveis ao perfil de demonstração; não declarar conformidade institucional sem validação.
 - [ ] Testes de acesso permitido/negado, isolamento por convênio, cache e auditoria, mantendo contratos executáveis.
 
-**Pronto quando:** permissões e trilha são demonstráveis sem expor dados pessoais, e as limitações de produção estão declaradas.
+**Aceite original não atendido:** permissões e trilha demonstráveis. Minimização/logs/correlação parciais de E9/E10 não cumprem o checklist completo. Nenhuma credencial, TLS ou criptografia do Windows foi configurada/verificada; somente dados sintéticos em loopback.
 
-### E12 — Recuperação operacional e retenção
+### E12 — Preparação operacional mínima da demonstração (revisada)
 
-**Fontes:** Sessões 4/5, US-07/10/12.
+**Fontes:** execução do CORE e evidências E8–E10. ADR-014 reduz o escopo anterior de recuperação/retenção. Não desenvolver replay sem autenticação/auditoria.
 
-- [ ] Fluxo restrito e auditado para analisar/reprocessar comandos isolados, depois de corrigir a causa e verificar se o registro já ocorreu.
-- [ ] Reprocessamento preserva UUID/idempotência, não cria outro boleto e registra ator, motivo e resultado; impedir disparos concorrentes/indiscriminados.
-- [ ] Rejeição de negócio permanece resultado final; replay técnico não converte `REJEITADO` em aprovação.
-- [ ] Provar recuperação após reinício, indisponibilidade prolongada, resposta perdida e falha entre commit e confirmação.
-- [ ] Formalizar retenção por base/outbox/quarentena/auditoria/cache/eventos e o marco de encerramento. Cinco anos é hipótese a validar, não regra legal confirmada.
-- [ ] Definir procedimento de backup/restauração do H2 local e ambiente de demo sem apagar dados para contornar erro.
-- [ ] Incluir armazenamento do broker, assinaturas duráveis e quarentena no procedimento de parada/recuperação, sem apagar o journal para contornar mensagens pendentes.
-- [ ] Atualizar runbook de falhas e regras divergentes do glossário.
+- [ ] Consolidar runbook local de início/parada/prontidão, portas e preservação de H2/journal/assinaturas/quarentena.
+- [ ] Documentar cópia/restauração com processos parados e verificar em dados sintéticos isolados, sem apagar bases existentes ou journal para contornar falhas.
+- [ ] Descrever como identificar isolamento da outbox/quarentena e os limites de recuperação automática já existentes, sem endpoint/comando de replay indiscriminado.
+- [ ] Manter estados finais e UUIDs: indisponibilidade técnica não inventa rejeição nem reinicia isolados; E14 verifica reinício/recuperação suportados.
+- [ ] Informar que backup não é retenção formal nem criptografia; nenhuma promessa de registro eventual após esgotamento.
 
-**Pronto quando:** operação consegue recuperar uma entrega com autorização e trilha, sem duplicar efeitos. Expurgo automático e operação bancária real continuam fora do MVP.
+**Não atendidos/fora da entrega atual:** replay autorizado/auditado, ator/motivo/resultado de reprocessamento, política de retenção por canal e proteção operacional da Sessão 5 (US-07 parcialmente, US-10/11/12). Hipótese de cinco anos continua não validada.
+
+**Pronto quando, no escopo revisado:** outro integrante consegue preservar e recuperar os arquivos da demonstração conforme procedimento testado, reconhecendo que isolados não são reprocessados automaticamente. Não declarar o aceite operacional/compliance original cumprido.
 
 ### E13 — Opcionais: não aplicável
 
 - [x] Grupo confirmado com **três integrantes**; o brief não exige opcional adicional.
 - [x] Nenhum opcional selecionado como obrigação. Kafka com múltiplos grupos, segundo par PACT e SAGA adicional não entram no planejamento.
 
-E13 não gera implementação nem tag de funcionalidade. A numeração foi preservada para não deslocar E14/E15. Eventos, correlação, resiliência e auditoria previstos no tema/rubrica continuam nas respectivas etapas; não foram removidos com a dispensa de opcionais. Nomes e papéis dos integrantes ainda devem ser preenchidos na autoavaliação.
+E13 não gera implementação nem tag de funcionalidade. A numeração foi preservada para não deslocar E14/E15. Eventos/correlação/resiliência entregues permanecem; auditoria e proteção não atendidas foram retiradas da entrega pela revisão explícita ADR-014, não pela dispensa de opcionais. Nomes e papéis ainda devem ser preenchidos na autoavaliação.
 
 ### E14 — Aceite integrado, desempenho e reprodução
 
@@ -249,7 +254,7 @@ E13 não gera implementação nem tag de funcionalidade. A numeração foi prese
 - [ ] Reproduzir início/parada do broker e dos três serviços, com confirmação de prontidão e armazenamento preservado, sem Docker.
 - [ ] Jornadas com serviços separados: aceite/consulta imediata, registro, rejeição, repetição, conflito, comando duplicado, ausência e erro técnico.
 - [ ] Provar invalidação/expiração do cache e comportamento sob indisponibilidade; 503 rastreável não vira 404.
-- [ ] Provar quarentena/replay, recuperação após reinício, eventos duplicados, isolamento de acesso e trilha operacional.
+- [ ] Provar quarentena, recuperação já suportada após reinício e eventos duplicados; verificar procedimento E12 revisado. Registrar explicitamente que replay auditado, isolamento de acesso e trilha operacional não foram implementados, sem marcar teste desses controles como aprovado.
 - [ ] Medir p95 de consulta com cache contra a premissa de 100 ms, declarando máquina, dados, aquecimento, concorrência e quantidade de requisições. Não inferir desempenho a partir de teste unitário.
 - [ ] Tratar ~500 emissões/s e proporção 20:1 como premissas: medir se aceitas como meta de entrega, ou ratificar explicitamente o limite didático; não declarar capacidade não testada.
 - [ ] Um segundo integrante consegue reproduzir instalação/build/subida/demo com instruções e variáveis, sem credenciais pessoais ou resíduo de `target`.
@@ -261,7 +266,7 @@ E13 não gera implementação nem tag de funcionalidade. A numeração foi prese
 
 **Portão de entrada — todos devem estar atendidos:**
 
-- [ ] E6–E12 concluídas e E14 aprovada; E13 já registrada como não aplicável pelo grupo de três.
+- [ ] E6–E10 e E12 revisada concluídas, E14 aprovada; E11 não implementada/fora da entrega atual e lacunas da Sessão 5 explícitas na ADR-014; E13 não aplicável.
 - [ ] Nenhum bloqueio de CORE ou requisito do tema escondido em “próximos passos”; desvios aprovados têm justificativa e evidência do perfil.
 - [ ] Comandos e eventos comprovados no broker JVM, incluindo persistência, reentrega e assinaturas duráveis; nenhum passo da entrega depende de Docker.
 - [ ] Contratos e build final verdes, fluxos críticos reproduzidos e pendências técnicas resolvidas.
@@ -272,8 +277,8 @@ E13 não gera implementação nem tag de funcionalidade. A numeração foi prese
 - [ ] Preencher `AVALIACAO.md`: nomes dos três integrantes, papéis, nível justificado por critério e caminhos/testes/commits; manter opcionais como não aplicáveis.
 - [ ] Reflexão honesta sobre IA: o que gerou, decisões humanas, erros encontrados e como foram verificados.
 - [ ] Revisar links, divergências documentais, premissas e evidências; manter histórico das etapas anteriores.
-- [ ] Preparar demo e defesa dentro dos aproximadamente 20 minutos por grupo previstos no brief, reservando tempo para arguição: problema, contextos, jornada, contratos, falhas/replay e trade-offs.
+- [ ] Preparar demo e defesa dentro dos aproximadamente 20 minutos por grupo previstos no brief: problema, contextos, jornada, contratos, falhas/quarentena e trade-offs; declarar ausência de replay auditado e controles da Sessão 5, sem prometer nota.
 - [ ] Entrega acessível em repositório/zip sem segredos; verificar push/autenticação se a entrega for pelo remoto, sem presumir que commits locais já foram enviados.
 - [ ] Registrar marco final somente após esses aceites.
 
-**Fechamento não substitui desenvolvimento.** Documentação acompanha cada etapa; E15 consolida um sistema já pronto, não encerra o projeto deixando contratos, eventos, proteção ou testes obrigatórios para depois.
+**Fechamento não substitui desenvolvimento.** E15 consolida o escopo revisado após aceite, sem deixar bloqueios do CORE escondidos. A entrega não atende integralmente a especificação original de boletos: proteção/auditoria/retenção e replay restrito foram explicitamente excluídos pelo solicitante, não implementados nem aprovados pelo docente.

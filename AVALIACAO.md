@@ -9,7 +9,7 @@ Perfil de execução: B (pura-JVM), **sem Docker na entrega**. E8/E9: comandos e
 
 **Em desenvolvimento, sem autoavaliação final.** O [roteiro revisado](ROTEIRO.md) compara todas as aulas, o exemplo PIX e os critérios do [brief](brief-alunos.md), registra E0–E10 e planeja até E15. Fechamento apenas na E15, depois da validação integrada E14.
 
-Pendências principais: acesso e auditoria (E11); replay e retenção (E12); aceite integrado (E14). E8 entregou fila/quarentena duráveis; E9 adicionou eventos mínimos/intenção atômica/cache coordenado; E10 entregou limites HTTP, circuitos por fonte e correlação ponta a ponta sem alterar idempotência. Finais antigos permanecem preservados sem fatos retroativos inventados. Proteção e retenção são requisitos do tema, não opcionais automaticamente dispensados.
+Prioridade revisada pelo solicitante em 20/10/2026: **CORE geral**, preservando E0–E10. E11 não implementada/fora da entrega atual; E12 reduzida a preparação operacional local, sem replay auditado ou retenção formal; E14/E15 continuam pendentes. **Requisitos da Sessão 5 não atendidos integralmente:** autorização por convênio, auditoria persistida, criptografia comprovada e retenção formal. Correlação/logs mínimos não substituem esses controles. Redução não é aprovação docente nem garantia de nota: [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
 
 Os pesos usados são os do brief: **15/15/12/10/12/13/13/5/5 = 100**. A divergência 12/12 no material da Aula 9 está registrada no roteiro para confirmação. Não atribuir nota por funcionalidade apenas planejada.
 
@@ -37,4 +37,4 @@ Os pesos usados são os do brief: **15/15/12/10/12/13/13/5/5 = 100**. A divergê
    Como rodar: [README](README.md), quatro JARs/JVMs no perfil B; health e jornada de transporte/reinício verificados na [E8](docs/etapas/E8-broker-jvm.md). Reprodução por outro integrante e jornadas finais ainda E14.
 
 ## Opcionais entregues
-**Não aplicável:** grupo confirmado com três integrantes, portanto nenhum opcional adicional é obrigatório conforme o brief. E13 registrada como não aplicável; não representa funcionalidade entregue. Permanecem os requisitos do tema e os critérios gerais da rubrica, incluindo uso crítico de IA.
+**Não aplicável:** grupo confirmado com três integrantes, portanto nenhum opcional adicional é obrigatório conforme o brief. E13 não representa funcionalidade entregue. Os nove critérios gerais continuam na autoavaliação; a Sessão 5 permanece na especificação, mas seus requisitos não foram integralmente atendidos por decisão explícita de escopo, não por dispensa automática de opcionais. Não atribuir pontos por controles ausentes.
