@@ -11,6 +11,12 @@
 
 Essa decisão não é aprovação docente nem garantia de nota. Sem autenticação/autorização por convênio, auditoria persistida ou criptografia comprovada: **somente demonstração local com dados sintéticos e serviços em loopback**. Não expor em rede nem alegar conformidade. A [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md) prevalece sobre promessas anteriores de E11/E12; evidências históricas permanecem.
 
+### Revisão do mínimo necessário para avaliação — 20/10/2026
+
+A [revisão dos nove critérios](AVALIACAO.md) conferiu fontes, código e testes: os seis itens do CORE têm evidência de implementação; não foi identificada necessidade de nova funcionalidade para o CORE geral. Ainda faltam consolidação da avaliação/IA e reprodução da demonstração final. E0–E15 são organização interna, não quinze exigências do professor.
+
+Não confundir os portões internos abaixo com a rubrica: cópia/restauração completa e ensaio de carga/p95 são verificações operacionais/premissas do tema, **não exigências numéricas do CORE geral**. O README já contém início/parada/portas. A recomendação é reaproveitar essas instruções e os testes existentes, sem criar infraestrutura ou funcionalidades adicionais. Os portões planejados permanecem registrados até revisão explícita; esta auditoria não os marca como executados.
+
 ## Decisões confirmadas pelo grupo — 20/10/2026
 
 - **Sem Docker durante toda a entrega:** perfil B, com aplicações e broker executados em JVM.
@@ -46,15 +52,15 @@ Comandos migraram na E8; eventos e invalidação foram entregues na E9. Não há
 |---|---|---|
 | E0 — Fundação (`etapa-0`) | Java 17/Spring Boot, Maven, três serviços e bases segregadas | Os perfis Maven declarados ainda não representam três ambientes completos implementados |
 | E1 — DDD/emissão (`etapa-1`) | Contextos, decisões e `POST /boletos` validado | Matriz e fronteira de registro completadas na E7; agregado/VOs foram definidos conceitualmente |
-| E2 — Idempotência (`etapa-2`) | Aceite persistido; mesma chave/conteúdo repete resposta; conflito 409 | Histórico de novos resultados completado na E7; auditoria completa continua E11 |
+| E2 — Idempotência (`etapa-2`) | Aceite persistido; mesma chave/conteúdo repete resposta; conflito 409 | Histórico de novos resultados completado na E7; auditoria completa não atendida (ADR-014) |
 | E3 — Consulta/cache (`etapa-3`) | Cache-aside Caffeine, TTL por estado, fallback C e 400/404/503 distintos | TTL provisório; complementado por invalidação na E9 |
 | E4 — Assíncrono adaptado (`etapa-4`) | Outbox transacional de comando e consumidor HTTP idempotente | Transporte substituído na E8; outbox de eventos adicionada na E9 |
-| E5 — Resiliência HTTP (`etapa-5`) | Três tentativas totais, backoff 1 s/5 s, timeouts do produtor, isolamento e `REJEITADO` | DLQ de broker E8 e breaker HTTP E10; replay continua E12 |
-| E6 — Contratos executáveis | PACT consulta ↔ registro: três interações, provedor HTTP/H2 e comparação automática do gerado com o canônico | Atualizado na E7 com dados não pagáveis; autorização ainda E11 |
+| E5 — Resiliência HTTP (`etapa-5`) | Três tentativas totais, backoff 1 s/5 s, timeouts do produtor, isolamento e `REJEITADO` | DLQ de broker E8 e breaker HTTP E10; replay auditado fora da entrega atual |
+| E6 — Contratos executáveis | PACT consulta ↔ registro: três interações, provedor HTTP/H2 e comparação automática do gerado com o canônico | Atualizado na E7 com dados não pagáveis; autorização não atendida (ADR-014) |
 | E7 — Contrato funcional | Matriz validada nas duas fronteiras, novos dados não pagáveis/histórico e ledger idempotente da registradora simulada | Finais antigos preservados sem inventar dados retroativos; registradora real fora do MVP |
-| E8 — Broker JVM | Artemis em processo próprio, fila/quarentena duráveis, confirmação, retry, migração e recuperação após reinício | Eventos complementados na E9; autenticação/TLS E11 e replay auditado E12 |
-| E9 — Eventos e cache | Três eventos mínimos, outbox local nos produtores, pub/sub durável e invalidação coordenada com leitura | Uma instância por serviço; correlação complementada na E10, proteção E11 e recuperação E12 |
-| E10 — Resiliência e correlação | Timeouts e circuitos independentes nas fontes HTTP; correlação validada em HTTP, comando/outbox/JMS/eventos e consulta | Limites de socket, não SLA global; registradora local; acesso/auditoria E11 e operação E12 |
+| E8 — Broker JVM | Artemis em processo próprio, fila/quarentena duráveis, confirmação, retry, migração e recuperação após reinício | Eventos complementados na E9; autenticação/TLS e replay auditado não atendidos (ADR-014) |
+| E9 — Eventos e cache | Três eventos mínimos, outbox local nos produtores, pub/sub durável e invalidação coordenada com leitura | Uma instância por serviço; correlação complementada na E10; proteção não atendida; operação E12 revisada |
+| E10 — Resiliência e correlação | Timeouts e circuitos independentes nas fontes HTTP; correlação validada em HTTP, comando/outbox/JMS/eventos e consulta | Limites de socket, não SLA global; registradora local; acesso/auditoria não atendidos; operação E12 revisada |
 
 **Última validação registrada:** `mvn -B clean verify` com **265 testes**, sem falhas/erros/ignorados (19 infraestrutura-http, 12 broker, 17 eventos-outbox, 97 emissor, 69 registro, 50 consulta Surefire e 1 Failsafe). [E10](docs/etapas/E10-resiliencia-e-correlacao.md) cobre circuitos com clock controlado, timeout HTTP real e correlação nas fronteiras persistentes. A [E8](docs/etapas/E8-broker-jvm.md) comprova quatro JVMs para comandos/reinício; os testes posteriores não são nova prova de quatro processos. Não é carga nem substitui E14. Contagens anteriores permanecem no histórico de cada etapa.
 
@@ -75,7 +81,7 @@ As pastas do gabarito não seguem a mesma numeração dos planos de aula:
 | Aula 5 — Assíncrono | [Estado aula-04](../projeto-guiado-pix/gabarito/aula-04/ESTADO.md), publisher/listener | Outbox de comando + consumidor de registro | E8: fila Artemis durável substituiu HTTP provisório |
 | Aula 6 — RabbitMQ | [Estado aula-05](../projeto-guiado-pix/gabarito/aula-05/ESTADO.md), exchange/binding, ack, retry/DLQ | Entrega confirmada, retry, quarentena e reentrega | E8: padrões validados na topologia Artemis, sem exigir RabbitMQ |
 | Aula 7 — Eventos/Kafka | [Estado aula-06](../projeto-guiado-pix/gabarito/aula-06/ESTADO.md), evento e notificação | Eventos mínimos após aceite e resultado; assinantes independentes | E9 entregue pelo broker JVM; Kafka/múltiplos grupos fora do escopo escolhido |
-| Aula 8 — Resiliência | [Estado aula-07](../projeto-guiado-pix/gabarito/aula-07/ESTADO.md), `@RetryableTopic` e breaker | Proteção das dependências remotas; falha não vira sucesso | E10 entregue: limites HTTP, circuitos independentes, correlação e recuperação de circuito; replay operacional E12 |
+| Aula 8 — Resiliência | [Estado aula-07](../projeto-guiado-pix/gabarito/aula-07/ESTADO.md), `@RetryableTopic` e breaker | Proteção das dependências remotas; falha não vira sucesso | E10 entregue: limites HTTP, circuitos independentes, correlação e recuperação de circuito; replay auditado fora da entrega atual |
 | Aula 8 — PACT | [Estado aula-08](../projeto-guiado-pix/gabarito/aula-08/ESTADO.md), consumidor consulta e provedor gravador | Consumidor consulta e provedor registro | E6 entregue: geração, verificação e proteção contra artefato desatualizado |
 | Aula 9 — Defesa | [Guia da banca](../../plano-de-aulas/aula-09-aluno.md) | Demo, autoavaliação, decisões e uso crítico de IA | Apenas depois dos testes de aceite — E15 |
 
@@ -91,7 +97,7 @@ As pastas do gabarito não seguem a mesma numeração dos planos de aula:
 
 ## 4. De/para: critérios da avaliação → evidência e lacuna
 
-Pesos abaixo seguem o **brief do trabalho final**, somando 100. O material da Aula 9 traz 12 para os critérios 6 e 7, divergindo dos 13/13 do brief; este roteiro usa o brief e registra a diferença para confirmação com o docente, sem inventar uma nota.
+Pesos abaixo seguem o **brief do trabalho final**, somando 100. O material da Aula 9 traz 12 para os critérios 6 e 7, divergindo dos 13/13 do brief e somando 98, embora declare 100; este roteiro usa o brief e registra a diferença para confirmação com o docente, sem inventar uma nota.
 
 | # | Critério / peso | Evidência já existente | O que falta antes do fechamento | Etapas |
 |---|---|---|---|---|
@@ -100,10 +106,10 @@ Pesos abaixo seguem o **brief do trabalho final**, somando 100. O material da Au
 | 3 | Idempotência/consistência — 12 | Chaves, fingerprint, ledger E7; E9: intenção atômica de eventos, rollback e reentrega por mesmo id | Recuperação integrada; replay auditado não atendido/fora da entrega atual | E12 revisada, E14 |
 | 4 | Cache — 10 | TTL, fallback, não cachear 404/erro; E9 invalidação final e corrida de preenchimento testada | Expiração/carga real; autorização inclusive cache hit não atendida/fora da entrega atual | E14 |
 | 5 | Resiliência — 12 | E8: retry/backoff/isolamento/quarentena; E10: limites HTTP, breaker independente e recuperação testada sem retry aninhado | Recuperação operacional e jornadas integradas | E12, E14 |
-| 6 | Testabilidade — 13 | E10: PACT preservado, 265 testes sem Docker; clock controlado, HTTP local real, correlação com Artemis/H2 | Manter contratos nas próximas mudanças; jornadas integradas | E11, E14 |
-| 7 | ADRs — 13 | ADR-001…013 com alternativas e decisões de cache/resiliência/correlação | Atualizar decisões novas e divergências com requisitos | E11–E14, consolidar E15 |
+| 6 | Testabilidade — 13 | E10: PACT preservado, 265 testes sem Docker; clock controlado, HTTP local real, correlação com Artemis/H2 | Manter contratos; jornadas integradas da versão final | E14 |
+| 7 | ADRs — 13 | ADR-001…014 com alternativas, decisões técnicas e limites de escopo | Corrigir divergências existentes, sem criar decisões artificiais | Revisão documental; consolidar E15 |
 | 8 | Uso crítico de IA — 5 | Histórico por etapas e commits | Registrar contribuição humana, falhas encontradas, decisões revistas e validações reais | Durante etapas; consolidar E15 |
-| 9 | Execução comprovada — 5 | Execução E0–E4 e testes E5 registrados | Reprodução por outro integrante, artefatos finais, demo e instruções sem dependências implícitas | E14, E15 |
+| 9 | Execução comprovada — 5 | Quatro JVMs/reinício E8; instruções no README; build e PACT E10 | Reprodução da versão final, demo e instruções sem dependências implícitas | E14, E15 |
 
 Não atribuir nível 3 automaticamente por existir código. A autoavaliação precisa apontar prova executável e as limitações do perfil escolhido.
 
@@ -152,7 +158,7 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [x] Quebra controlada de 404 para 200 detectada no provedor e na comparação; contrato restaurado e build verde.
 - [x] [ADR-009](docs/adr/ADR-009-contrato-consulta-registro.md) e [execução/evidências E6](docs/etapas/E6-contratos-pact.md). Segundo par não é obrigatório para o grupo de três.
 
-**Aceite atendido:** build limpo gera/valida contrato, passa sem Docker e detecta incompatibilidade real. Atualização dos dados simulados feita na E7; manter contrato ao adicionar autorização na E11.
+**Aceite atendido:** build limpo gera/valida contrato, passa sem Docker e detecta incompatibilidade real. Atualização dos dados simulados feita na E7; manter contrato nas próximas mudanças. Autorização não atendida/fora da entrega atual (ADR-014).
 
 ### E7 — Completar o contrato funcional do domínio (concluída)
 
@@ -166,7 +172,7 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [x] Ledger durável por UUID em transação independente na simulação: perda de resposta aprovada/rejeitada e rollback local recuperados, sem prometer atomicidade distribuída.
 - [x] Glossário/user stories/ADRs harmonizados: retry 1 s/5 s, dados didáticos e 202 após commit local de aceite/outbox. [ADR-010](docs/adr/ADR-010-contrato-funcional-e-idempotencia-registradora.md).
 
-**Aceite atendido para novos processamentos E7:** estados finais completos no contrato simulado, histórico e idempotência testados; PACT verde em build limpo com 146 testes. Registros finais antigos são preservados sem reprocessamento nem histórico inventado; auditoria completa e recuperação operacional continuam E11/E12.
+**Aceite atendido para novos processamentos E7:** estados finais completos no contrato simulado, histórico e idempotência testados; PACT verde em build limpo com 146 testes. Registros finais antigos são preservados sem reprocessamento nem histórico inventado; auditoria completa não atendida (ADR-014); operação local E12 revisada pendente.
 
 ### E8 — Broker JVM, fila de comandos e quarentena (concluída)
 
@@ -197,7 +203,7 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [x] Restrição: uma instância de cada serviço. Múltiplas consultas com cache local exigem assinaturas exclusivas por instância; mesma fila não difunde invalidação.
 - [x] ADR-006 complementada pela ADR-012; execução, migração e limites na [E9](docs/etapas/E9-eventos-e-cache.md). Sem notificação efetiva, baixa ou liquidação.
 
-**Aceite atendido:** intenção atômica ao estado, publicação independente com recuperação/isolamento, assinante independente e invalidação final coordenada com leitura. Eventos legados não são inventados. Correlação HTTP complementada na E10; proteção E11, recuperação E12 e aceite integrado E14 continuam pendentes.
+**Aceite atendido:** intenção atômica ao estado, publicação independente com recuperação/isolamento, assinante independente e invalidação final coordenada com leitura. Eventos legados não são inventados. Correlação HTTP complementada na E10; proteção não atendida/fora da entrega atual (ADR-014); operação local E12 revisada e aceite integrado E14 pendentes.
 
 ### E10 — Resiliência das dependências e correlação ponta a ponta
 
@@ -210,7 +216,7 @@ A numeração organiza a conversa; atividades independentes podem ocorrer antes.
 - [x] Header UUID v4 validado/gerado nos três serviços; preservado em respostas/erros/cache hit, comando/outbox/JMS, eventos e chamadas HTTP internas. Contexto limpo entre threads/pedidos; metadado excluído da identidade de negócio, com legados cobertos.
 - [x] Testes de falhas exatas, clock controlado/limiar/espera/sonda/recuperação, ausência de chamada OPEN, timeout/redirect HTTP reais e correlação nas fronteiras JMS/JPA. `clean verify`: 265 testes e PACT aprovados.
 
-**Aceite atendido:** limites de socket explícitos e rastreabilidade nas fronteiras, sem sucesso falso nem retry adicional de aplicação. Não é deadline global ou registradora HTTP real. Evidências, migração e alternativas na [E10](docs/etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](docs/adr/ADR-013-resiliencia-e-correlacao.md). Próxima E11; E14/E15 continuam pendentes.
+**Aceite atendido:** limites de socket explícitos e rastreabilidade nas fronteiras, sem sucesso falso nem retry adicional de aplicação. Não é deadline global ou registradora HTTP real. Evidências, migração e alternativas na [E10](docs/etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](docs/adr/ADR-013-resiliencia-e-correlacao.md). Próxima E12 revisada; E11 não implementada/fora da entrega atual; E14/E15 continuam pendentes.
 
 ### E11 — Controle de acesso, privacidade e auditoria
 
