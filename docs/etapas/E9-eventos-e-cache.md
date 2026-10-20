@@ -28,9 +28,9 @@ Filas preprovisionadas, sem criacao/exclusao automatica. Publicador verifica a a
 
 Consulta continua cache-aside Caffeine: 30 s em `AGUARDANDO_REGISTRO`, 10 min em finais; registro primeiro, fallback ao emissor somente apos 404; erros/ausencia nao sao cacheados.
 
-O [listener](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/ConsultaEventoListener.java) consome a assinatura pela FQQN. Eventos finais removem a entrada; a proxima consulta busca a resposta completa na fonte. `EmissaoAceita` e confirmado sem preencher/rebaixar estado. Evento nao e projecao de dados de pagamento.
+O [listener](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/listeners/ConsultaEventoListener.java) consome a assinatura pela FQQN. Eventos finais removem a entrada; a proxima consulta busca a resposta completa na fonte. `EmissaoAceita` e confirmado sem preencher/rebaixar estado. Evento nao e projecao de dados de pagamento.
 
-O [servico](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/ConsultaBoletoService.java) coordena get/busca/put e invalidacao pelas mesmas 64 travas por faixa de UUID. Se uma leitura estiver preenchendo o cache, o evento espera, remove o preenchimento e so depois confirma JMS. A resposta ja em voo pode ser transitoria; **depois do ack ela nao permanece como cache hit**. Duplicatas/fora de ordem apenas repetem a remocao.
+O [servico](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/services/ConsultaBoletoService.java) coordena get/busca/put e invalidacao pelas mesmas 64 travas por faixa de UUID. Se uma leitura estiver preenchendo o cache, o evento espera, remove o preenchimento e so depois confirma JMS. A resposta ja em voo pode ser transitoria; **depois do ack ela nao permanece como cache hit**. Duplicatas/fora de ordem apenas repetem a remocao.
 
 Falha de invalidacao reverte JMS; broker faz tres entregas com minimos 1 s/5 s, depois quarentena. JSON/envelope/corpo invalidos sao transferidos na mesma transacao JMS do ack original. Falha dessa transferencia nao confirma o original.
 
@@ -51,9 +51,9 @@ Resultado: **BUILD SUCCESS, 214 testes aprovados**, zero falhas/erros/ignorados:
 | Suite | Provas principais |
 |---|---|
 | [EventoOutboxTest](../../eventos-outbox/src/test/java/br/com/caixa/cobranca/eventos/EventoOutboxTest.java) | Tres envelopes/campos obrigatorios; transacao obrigatoria/rollback; commit com broker offline; retry/backoff/esgotamento e isolamento sem bloquear bom; confirmacao perdida duplica mesmo id; falta da assinatura; dois assinantes independentes e reinicio preservando pendencia offline; JSON corrompido |
-| [EventosEmissaoTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/EventosEmissaoTest.java) | Aceite/comando/evento atomicos sem broker; falha depois de flush reverte tudo; repeticao/conflito/invalidacao da entrada nao criam novo evento |
-| [EventosRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/EventosRegistroTest.java) | Aprovacao/rejeicao; final/historico/evento unicos; falha de intencao e rollback externo; recuperacao pelo ledger independente; final legado nao inventa evento |
-| [ConsultaEventosTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/ConsultaEventosTest.java) | Invalidacao antes de TTL; duplicata/ordem; outro boleto; corrida deterministica com latches; falha antes de ack/reentrega; invalido e nao textual preservados na quarentena; esgotamento de invalidacao sem bloquear bom |
+| [EventosEmissaoTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/integration/EventosEmissaoTest.java) | Aceite/comando/evento atomicos sem broker; falha depois de flush reverte tudo; repeticao/conflito/invalidacao da entrada nao criam novo evento |
+| [EventosRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/EventosRegistroTest.java) | Aprovacao/rejeicao; final/historico/evento unicos; falha de intencao e rollback externo; recuperacao pelo ledger independente; final legado nao inventa evento |
+| [ConsultaEventosTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/integration/ConsultaEventosTest.java) | Invalidacao antes de TTL; duplicata/ordem; outro boleto; corrida deterministica com latches; falha antes de ack/reentrega; invalido e nao textual preservados na quarentena; esgotamento de invalidacao sem bloquear bom |
 
 Fontes HTTP da consulta sao mocks nesses testes de eventos; o cliente/provedor REST real continua coberto pelo PACT E6/E7. Nao declarar esses testes como nova prova de quatro JVMs: essa execucao esta documentada na E8 para comandos. Jornada integrada completa e reproducao por outro integrante continuam E14.
 

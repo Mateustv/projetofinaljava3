@@ -8,10 +8,10 @@ O consumidor declara o que precisa receber por HTTP, e o provedor demonstra que 
 
 | Parte | Evidencia |
 |---|---|
-| Consumidor e cliente real | [RegistroContractTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/RegistroContractTest.java) |
+| Consumidor e cliente real | [RegistroContractTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/contracts/RegistroContractTest.java) |
 | Contrato unico versionado | [boleto-consulta-boleto-registro.json](../../shared-contracts/pacts/boleto-consulta-boleto-registro.json) |
-| Provedor HTTP com H2 isolado | [RegistroProviderTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/RegistroProviderTest.java) |
-| Deteccao de pact desatualizado | [PactArtifactIT](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/PactArtifactIT.java) |
+| Provedor HTTP com H2 isolado | [RegistroProviderTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/contracts/RegistroProviderTest.java) |
+| Deteccao de pact desatualizado | [PactArtifactIT](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/contracts/PactArtifactIT.java) |
 | Decisao e alternativas | [ADR-009](../adr/ADR-009-contrato-consulta-registro.md) |
 
 Tres interacoes:

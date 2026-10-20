@@ -14,6 +14,12 @@ Empresas emitem cobranças e não sabem se foram apenas recebidas, registradas o
 ## Arquitetura (resumo)
 3 serviços com bases segregadas + `shared-contracts` + infraestrutura reutilizável `eventos-outbox`/`infraestrutura-http` + broker JVM em processo próprio. Ver [`docs/arquitetura.md`](docs/arquitetura.md) e [`docs/adr/`](docs/adr/).
 
+## Onde encontrar as classes
+
+Nos três serviços, o código está separado por tipo de classe dentro de `src/main/java/br/com/caixa/cobranca/{emissor,registro,consulta}`: `controllers`, `services`, `models`, `repositories`, `dtos`, `clients`, `publishers`, `listeners`, `configs`, `validators`, `exceptions` e `handlers`, somente onde houver classes desse tipo. A classe `*Application` permanece no pacote raiz do serviço. Guia e exemplos: [organização dos pacotes](docs/arquitetura.md#organização-dos-pacotes-java).
+
+Para estudar: comece pelo controller, siga para o service e depois para repository/model ou client/publisher. A consulta não tem entidades/repositórios; seus clientes HTTP ficam em `clients`. Contratos entre serviços continuam em `shared-contracts`, sem duplicação nos serviços.
+
 ## Perfil de execução
 **Plano B (pura-JVM, sem Docker)** — definitivo para a entrega. Comandos e eventos usam **Apache ActiveMQ Artemis 2.33.0**, Jakarta JMS e armazenamento NIO. E9 adiciona pub/sub durável, outbox nos dois produtores e invalidação de cache. Não há fallback HTTP automático. Ver [ADR-011](docs/adr/ADR-011-broker-jvm-artemis.md), [operação/migração E8](docs/etapas/E8-broker-jvm.md) e [E9](docs/etapas/E9-eventos-e-cache.md). Perfis A/C no Maven são referências conceituais, não infraestruturas operacionais.
 

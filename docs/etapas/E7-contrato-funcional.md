@@ -90,10 +90,10 @@ mvn -B clean verify
 
 Evidencias novas:
 
-- [EmissaoRegrasTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/EmissaoRegrasTest.java): 54 casos da matriz.
-- [DominioRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/DominioRegistroTest.java): 27 casos, incluindo 19 campos obrigatorios, UUID, dados persistidos, historico sem duplicacao, resposta perdida aprovada/rejeitada, falha local, rollback apos flush, conflito externo e legado.
-- [RegistradoraSimuladaTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/RegistradoraSimuladaTest.java): 8 casos, incluindo troca de cenario, invariantes de resultado e disputa concorrente de chave sem sobrescrever efeito.
-- [RegistroRejeitadoTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/RegistroRejeitadoTest.java): schema E4, rejeicao, historico e reentrega sem segunda chamada.
+- [EmissaoRegrasTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/integration/EmissaoRegrasTest.java): 54 casos da matriz.
+- [DominioRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/DominioRegistroTest.java): 27 casos, incluindo 19 campos obrigatorios, UUID, dados persistidos, historico sem duplicacao, resposta perdida aprovada/rejeitada, falha local, rollback apos flush, conflito externo e legado.
+- [RegistradoraSimuladaTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/RegistradoraSimuladaTest.java): 8 casos, incluindo troca de cenario, invariantes de resultado e disputa concorrente de chave sem sobrescrever efeito.
+- [RegistroRejeitadoTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/RegistroRejeitadoTest.java): schema E4, rejeicao, historico e reentrega sem segunda chamada.
 - Testes existentes de emissao, rollback de outbox, retry HTTP e concorrencia permaneceram verdes.
 - PACT consumidor/provedor e comparacao canonico/gerado passaram com os campos novos; projecao publica tambem verificada.
 

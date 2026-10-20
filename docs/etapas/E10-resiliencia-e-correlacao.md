@@ -22,7 +22,7 @@ Timeout de 5 s de registradora externa continua premissa da Sessao 4; nao alegar
 
 ## Circuit breaker
 
-[Cliente REST](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/RestBoletoFonteClient.java) usa Resilience4j 2.2.0 diretamente. Dois circuitos independentes, um por fonte/instancia:
+[Cliente REST](../../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/clients/RestBoletoFonteClient.java) usa Resilience4j 2.2.0 diretamente. Dois circuitos independentes, um por fonte/instancia:
 
 1. CLOSED: janela das ultimas tres chamadas, minimo tres, limiar 100% de falhas tecnicas.
 2. OPEN: nenhuma chamada a fonte durante 10 s; API responde 503 e nao aciona fallback indevido.
@@ -75,12 +75,12 @@ Resultado: **BUILD SUCCESS, 265 testes aprovados**, zero falhas/erros/ignorados:
 | Teste | O que verifica |
 |---|---|
 | [CorrelacaoFilterTest](../../infraestrutura-http/src/test/java/br/com/caixa/cobranca/http/CorrelacaoFilterTest.java) | UUID gerado/validado, statuses 200/202/400/404/409/503, entradas invalidas/duplicadas, limpeza em excecao, escopo aninhado e isolamento entre threads |
-| [ResilienciaFonteTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/ResilienciaFonteTest.java) | Limiar exato, ausencia de chamadas OPEN, meia-abertura/sonda unica e recuperacao com clock controlado, falha de sonda reabre, 404/rejeicao normais, erros de contrato/4xx/5xx sem retry, timeout real e redirect nao seguido, fallback/headers e cache hit com circuito aberto |
-| [OutboxEntregaJmsTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/OutboxEntregaJmsTest.java) | POST real via MVC -> intencoes JPA -> comando JMS com mesma correlacao; reenvio com outro header preserva identidade/intencao |
-| [EventosRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/EventosRegistroTest.java) | Correlacao distinta nao duplica efeito/evento; comando local e ledger legados sem campo continuam idempotentes |
-| [RegistroEntregaJmsTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/RegistroEntregaJmsTest.java) | Comando JMS -> contexto do registro -> resultado/intencao -> evento JMS com mesmo id; limpeza do contexto; divergencia de header em quarentena |
-| [ConsultaEventosTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/ConsultaEventosTest.java) | Evento -> contexto da invalidacao e limpeza apos entrega; divergencia de header nao invalida cache |
-| [ConsultaBoletoControllerTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/ConsultaBoletoControllerTest.java) | Header atual inclusive cache hit e 503 com mesmo id no corpo; entrada invalida recusada antes de fontes |
+| [ResilienciaFonteTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/clients/ResilienciaFonteTest.java) | Limiar exato, ausencia de chamadas OPEN, meia-abertura/sonda unica e recuperacao com clock controlado, falha de sonda reabre, 404/rejeicao normais, erros de contrato/4xx/5xx sem retry, timeout real e redirect nao seguido, fallback/headers e cache hit com circuito aberto |
+| [OutboxEntregaJmsTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/integration/OutboxEntregaJmsTest.java) | POST real via MVC -> intencoes JPA -> comando JMS com mesma correlacao; reenvio com outro header preserva identidade/intencao |
+| [EventosRegistroTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/EventosRegistroTest.java) | Correlacao distinta nao duplica efeito/evento; comando local e ledger legados sem campo continuam idempotentes |
+| [RegistroEntregaJmsTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/RegistroEntregaJmsTest.java) | Comando JMS -> contexto do registro -> resultado/intencao -> evento JMS com mesmo id; limpeza do contexto; divergencia de header em quarentena |
+| [ConsultaEventosTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/integration/ConsultaEventosTest.java) | Evento -> contexto da invalidacao e limpeza apos entrega; divergencia de header nao invalida cache |
+| [ConsultaBoletoControllerTest](../../boleto-consulta/src/test/java/br/com/caixa/cobranca/consulta/integration/ConsultaBoletoControllerTest.java) | Header atual inclusive cache hit e 503 com mesmo id no corpo; entrada invalida recusada antes de fontes |
 
 Testes usam HTTP local real para timeout/redirect, mocks HTTP verificaveis para falhas exatas, Artemis/H2 reais para fronteiras persistentes. O clock do circuito e controlado apenas no teste com a implementacao Resilience4j fixada; producao usa API publica e tempo normal. Nao se declara essa matriz como nova demonstracao de quatro JVMs ou medicao de carga. PACT E6/E7 deve continuar preservado.
 

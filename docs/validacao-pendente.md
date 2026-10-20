@@ -4,6 +4,15 @@
 
 > **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Esta reorganização é somente documental, com links/whitespace conferidos, sem nova execução funcional. A última revalidação permanece o build limpo com 265 testes aprovado na revisão `b11fad9`; F1–F3 ainda não concluídas.
 
+## Organização dos pacotes antes da F1 — 20/10/2026
+
+- [x] Classes dos três serviços separadas por tipo, com ponto de entrada no pacote raiz e contratos compartilhados preservados; ver [guia dos pacotes](arquitetura.md#organização-dos-pacotes-java).
+- [x] Testes organizados em `integration`, `contracts` e pacotes de unitários por tipo, mantendo os testes de inicialização na raiz.
+- [x] Imports e links para arquivos movidos atualizados. O construtor com `Clock` do dispatcher e os auxiliares de configuração HTTP/cache usados de outros pacotes passaram a públicos, sem alterar lógica ou configuração Spring.
+- [x] `mvn -B clean verify`: **BUILD SUCCESS, 265 testes**, zero falhas/erros/ignorados (19 infraestrutura-http, 12 broker, 17 eventos-outbox, 97 emissor, 69 registro, 50 consulta Surefire + 1 Failsafe); PACT consumidor/provedor e comparação canônica preservados.
+
+Essa é a revalidação funcional mais recente, posterior à revisão documental citada acima. Não é nova execução de quatro JARs, carga ou conclusão da F1. Não foram alterados endpoints, DTOs compartilhados, nomes de tabelas/destinos, orçamentos de retry nem fronteiras transacionais.
+
 ## Validação da E0
 
 - [x] **1. Ambiente**

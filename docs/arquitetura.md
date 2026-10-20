@@ -16,6 +16,31 @@
 | `infraestrutura-http` | — | — | Filtro/contexto de correlação comum aos três serviços, sem JPA/negócio |
 | `cobranca-broker` | 61616 | Journal NIO próprio | Comandos/quarentenas e pub/sub durável de eventos; somente loopback |
 
+## Organização dos pacotes Java
+
+Os três microsserviços usam **pacotes por tipo de classe**, sem mudar módulos, contratos HTTP/JMS ou transações. A classe de inicialização permanece no pacote raiz para o Spring descobrir os subpacotes. A configuração de eventos mantém a descoberta de entidades/repositórios dos produtores.
+
+| Pacote | Responsabilidade | Exemplo |
+|---|---|---|
+| `controllers` | Receber requisições HTTP | [BoletoController](../boleto-emissor/src/main/java/br/com/caixa/cobranca/emissor/controllers/BoletoController.java) |
+| `services` | Coordenar operações, persistência transacional e despacho | [EmissaoService](../boleto-emissor/src/main/java/br/com/caixa/cobranca/emissor/services/EmissaoService.java) |
+| `models` | Entidades persistidas e modelos internos | [RegistroBoletoEntity](../boleto-registro/src/main/java/br/com/caixa/cobranca/registro/models/RegistroBoletoEntity.java) |
+| `repositories` | Acessar o banco do próprio serviço | [RegistroBoletoRepository](../boleto-registro/src/main/java/br/com/caixa/cobranca/registro/repositories/RegistroBoletoRepository.java) |
+| `dtos` | Dados de resposta/integração locais | [ErroConsulta](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/dtos/ErroConsulta.java) |
+| `clients` | Interfaces e implementações de chamadas a outras fontes | [BoletoFonteClient](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/clients/BoletoFonteClient.java) |
+| `publishers` | Publicar comandos | [JmsRegistroCommandPublisher](../boleto-emissor/src/main/java/br/com/caixa/cobranca/emissor/publishers/JmsRegistroCommandPublisher.java) |
+| `listeners` | Consumir mensagens/eventos | [RegistroCommandListener](../boleto-registro/src/main/java/br/com/caixa/cobranca/registro/listeners/RegistroCommandListener.java) |
+| `configs` | Configurar cache, HTTP e JMS | [ConsultaCacheConfiguration](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/configs/ConsultaCacheConfiguration.java) |
+| `validators` | Validar solicitações | [EmissaoValidator](../boleto-emissor/src/main/java/br/com/caixa/cobranca/emissor/validators/EmissaoValidator.java) |
+| `exceptions` | Representar falhas específicas | [BoletoNaoEncontradoException](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/exceptions/BoletoNaoEncontradoException.java) |
+| `handlers` | Traduzir exceções em respostas HTTP | [ConsultaExceptionHandler](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/handlers/ConsultaExceptionHandler.java) |
+
+Criar somente pacotes utilizados: consulta não tem `models`/`repositories`, pois não possui banco próprio. As interfaces ficam junto à implementação do mesmo tipo (`clients` ou `publishers`). O ledger da simulação usa entidade em `models`, repository em `repositories` e serviço transacional em `services`; a implementação da registradora fica em `clients`.
+
+Em `src/test/java`, testes unitários ficam em `services`, `validators` ou `clients`; verificações PACT ficam em `contracts`; testes que atravessam MVC/JPA/JMS ficam em `integration`. Testes de inicialização permanecem no pacote raiz. Dados de teste compartilhados dentro de cada grupo permanecem no mesmo pacote.
+
+Os módulos pequenos de infraestrutura e `shared-contracts` mantêm seus pacotes: não são microsserviços nem precisam reproduzir pastas vazias. DTOs compartilhados continuam no módulo de contratos, não em entidades JPA.
+
 ## Diagrama de contextos
 
 ```mermaid

@@ -16,6 +16,8 @@ Atualizado em **20/10/2026**, após o usuário informar a orientação do profes
 
 Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui a demonstração dos quatro processos. Nenhuma implementação ou teste existente será removido por ultrapassar o mínimo.
 
+**Organização antes da F1:** classes dos três serviços separadas em pacotes por tipo (`controllers`, `services`, `models`, `repositories` e demais tipos utilizados), com imports/testes/links atualizados. Regressão completa após a mudança: **265 testes aprovados**, incluindo PACT. Guia: [organização dos pacotes](docs/arquitetura.md#organização-dos-pacotes-java). Essa refatoração não conclui F1–F3 nem acrescenta funcionalidades.
+
 ## 2. O que falta — três etapas finais
 
 ### F1 — Conferir a demonstração da versão final

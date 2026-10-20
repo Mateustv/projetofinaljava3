@@ -107,8 +107,8 @@ Nenhuma alteracao de schema/reset da outbox foi necessaria. `entregue_em` antigo
 | Consulta / Failsafe | 1 |
 
 - [BrokerPersistenceTest](../../cobranca-broker/src/test/java/br/com/caixa/cobranca/broker/BrokerPersistenceTest.java): TCP real, parametros invalidos, commit/rollback, restart com comando e quarentena, contador persistido, destino ausente/sem rota e duas assinaturas duraveis independentes, uma offline.
-- [OutboxEntregaJmsTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/OutboxEntregaJmsTest.java): confirmacao com consumidor offline, restart, falta de destino/fila, broker indisponivel, confirmacao perdida/duplicata e migracao de pendente/isolado/entregue HTTP.
-- [RegistroEntregaJmsTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/RegistroEntregaJmsTest.java): listener real/JPA/Artemis, idempotencia, JSON/envelope invalido, corpo nao textual, conflito, tres entregas e continuidade do bom, recuperacao temporaria, rejeicao de negocio, rollback JPA, falha entre commit local e ack e falha atomica de transferencia para quarentena.
+- [OutboxEntregaJmsTest](../../boleto-emissor/src/test/java/br/com/caixa/cobranca/emissor/integration/OutboxEntregaJmsTest.java): confirmacao com consumidor offline, restart, falta de destino/fila, broker indisponivel, confirmacao perdida/duplicata e migracao de pendente/isolado/entregue HTTP.
+- [RegistroEntregaJmsTest](../../boleto-registro/src/test/java/br/com/caixa/cobranca/registro/integration/RegistroEntregaJmsTest.java): listener real/JPA/Artemis, idempotencia, JSON/envelope invalido, corpo nao textual, conflito, tres entregas e continuidade do bom, recuperacao temporaria, rejeicao de negocio, rollback JPA, falha entre commit local e ack e falha atomica de transferencia para quarentena.
 - Regressao E1–E7 e PACT consumidor/provedor/comparacao preservados, sem Docker ou broker pre-iniciado.
 
 ### Processos separados
