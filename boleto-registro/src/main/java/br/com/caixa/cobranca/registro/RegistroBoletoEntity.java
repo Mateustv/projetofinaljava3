@@ -31,11 +31,17 @@ public class RegistroBoletoEntity {
     @Column(name = "data_hora_recebimento", nullable = false)
     private LocalDateTime dataHoraRecebimento;
 
-    @Column(name = "identificador_registradora", nullable = false, length = 64)
+    @Column(name = "identificador_registradora", length = 64)
     private String identificadorRegistradora;
 
-    @Column(name = "data_hora_registro", nullable = false)
+    @Column(name = "data_hora_registro")
     private LocalDateTime dataHoraRegistro;
+
+    @Column(name = "codigo_rejeicao", length = 64)
+    private String codigoRejeicao;
+
+    @Column(name = "motivo_rejeicao", length = 255)
+    private String motivoRejeicao;
 
     protected RegistroBoletoEntity() {
     }
@@ -43,14 +49,15 @@ public class RegistroBoletoEntity {
     public RegistroBoletoEntity(UUID identificador,
                                 String comandoJson,
                                 LocalDateTime dataHoraRecebimento,
-                                String identificadorRegistradora,
-                                LocalDateTime dataHoraRegistro) {
+                                ResultadoRegistradora resultado) {
         this.identificador = identificador;
         this.comandoJson = comandoJson;
-        this.status = StatusBoleto.REGISTRADO;
+        this.status = resultado.status();
         this.dataHoraRecebimento = dataHoraRecebimento;
-        this.identificadorRegistradora = identificadorRegistradora;
-        this.dataHoraRegistro = dataHoraRegistro;
+        this.identificadorRegistradora = resultado.identificador();
+        this.dataHoraRegistro = resultado.dataHoraRegistro();
+        this.codigoRejeicao = resultado.codigoRejeicao();
+        this.motivoRejeicao = resultado.motivoRejeicao();
     }
 
     public String getComandoJson() {
@@ -66,8 +73,8 @@ public class RegistroBoletoEntity {
                 null,
                 identificadorRegistradora,
                 dataHoraRegistro,
-                null,
-                null
+                codigoRejeicao,
+                motivoRejeicao
         );
     }
 }

@@ -103,6 +103,7 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 | 19/10 | E2 | 20 testes do emissor; 22 no build completo. Repetição 202 estável, conflito 409, leitura interna 200 e ausente 404. |
 | 19/10 | E3 | 8 testes de consulta; 29 no build completo. Fallback 200, cache hit, ausência 404, UUID inválido 400 e indisponibilidade 503 rastreável. |
 | 19/10 | E4 | 22 testes do emissor, 5 do registro e 8 da consulta; 35 no build completo. Emissão HTTP 202, entrega após reinício do emissor e consulta interna 200/REGISTRADO. |
+| 20/10 | E5 HTTP | 53 testes: 33 do emissor, 12 do registro e 8 da consulta. Retry limitado, isolamento persistido, rejeição de negócio e compatibilidade com schema E4; broker RabbitMQ/DLQ não implementados. |
 
 ## Validação da E3
 
@@ -137,3 +138,18 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 - [x] Validação manual entre processos: `POST /boletos` retornou `202`/`AGUARDANDO_REGISTRO`; após o despachante, `GET /interno/boletos/{id}` retornou `200`/`REGISTRADO` e `SIM-{id}`.
 - [x] Reinício durante indisponibilidade: aceitei um boleto com o registro desligado, reiniciei o emissor, subi o registro e confirmei a entrega posterior do comando persistido.
 - [x] `mvn -B clean verify`: `BUILD SUCCESS`; 35 testes nos quatro módulos.
+
+## Validação da E5 provisória por HTTP
+
+- [x] Testes de retry com relógio controlado: três tentativas totais, espera de 1 s e depois 5 s; JSON inválido/nulo isolado imediatamente.
+- [x] Testes de integração do produtor com cliente HTTP real, servidor local de teste e H2: erro 503, backoff persistido, recuperação, esgotamento e ausência de novos envios após isolamento.
+- [x] Falhas permanentes HTTP 400/409 não repetidas; HTTP 408/429 retentáveis; HTTP 302 não confirma a entrega.
+- [x] Lote de 20 mensagens envenenadas isolado sem impedir a entrega da próxima mensagem boa.
+- [x] `GET /interno/outbox/falhas` retorna somente metadados; logs não incluem conteúdo livre de exceções.
+- [x] Registro simulado com aprovação, rejeição e indisponibilidade. Rejeição é persistida e idempotente, sem dados de pagamento; falha técnica retorna 503 e não deixa registro parcial.
+- [x] Compatibilidade do H2: teste de rejeição começa com tabela no formato E4, cujos campos de confirmação eram `NOT NULL`.
+- [x] Reentregas concorrentes não duplicam registro; falha na gravação da outbox faz rollback do aceite.
+- [x] `mvn -B clean verify`: `BUILD SUCCESS`; 53 testes, sem falhas (33 emissor, 12 registro, 8 consulta).
+- [ ] Validação com RabbitMQ, exchanges/bindings e DLQ reais — fora do escopo HTTP aprovado.
+
+Os testes HTTP desta E5 usam servidor local controlado, não os três serviços implantados em processos separados. Os cenários manuais de E4 continuam registrados acima; o roteiro manual atualizado de E5 está em [E5-resiliencia-outbox.md](etapas/E5-resiliencia-outbox.md).

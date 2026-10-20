@@ -15,7 +15,7 @@ Perfil de execução: B (pura-JVM)  ·  Fallback: transporte HTTP provisório na
 4. Cache — _
    Evidência: (E3) Caffeine cache-aside; TTL variável por estado (30 s transitório, 10 min final), sem cachear 404; testes de cache hit, fallback e 503.
 5. Resiliência — _
-   Evidência: (E5)
+   Evidência: (E5 provisória HTTP) três tentativas totais, backoff persistido de 1 s/5 s, isolamento técnico e rejeição de negócio; testes com HTTP/H2. Exchange/binding e DLQ de broker ainda pendentes; não atribuir evidência RabbitMQ a esta implementação.
 6. Testabilidade — _
    Evidência: (E5/PACT) — `mvn verify`
 7. Decisões arquiteturais — _  → ver `docs/adr/`

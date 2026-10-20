@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -17,6 +19,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +37,7 @@ class BoletoControllerTest {
     @Autowired
     private EmissaoAceitaRepository repository;
 
-    @Autowired
+    @SpyBean
     private ComandoRegistroOutboxRepository outboxRepository;
 
     @Autowired
@@ -142,6 +146,18 @@ class BoletoControllerTest {
     void consultaInternaRetorna404QuandoAceiteNaoExiste() throws Exception {
         mvc.perform(get("/interno/boletos/{identificador}", UUID.randomUUID()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void falhaAoGravarOutboxDesfazAceiteERetorna503() throws Exception {
+        doThrow(new DataAccessResourceFailureException("Falha simulada ao persistir outbox"))
+                .when(outboxRepository).saveAndFlush(any(ComandoRegistroOutboxEntity.class));
+
+        mvc.perform(post("/boletos").contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo("123456", "NF-ROLLBACK-E5", "150.00")))
+                .andExpect(status().isServiceUnavailable());
+
+        assertEquals(0L, repository.countByConvenioAndNumeroControleCliente("123456", "NF-ROLLBACK-E5"));
     }
 
     @Test

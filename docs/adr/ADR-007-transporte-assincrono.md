@@ -16,7 +16,7 @@ O grupo quer avançar na comunicação produtor/consumidor sem exigir RabbitMQ o
 
 A entrega é **at-least-once**, não exactly-once. Uma falha de rede depois de o registro confirmar a transação, mas antes de o emissor receber a resposta, provoca reenvio. A chave única por identificador e a comparação do conteúdo tornam a reentrega idempotente; o mesmo UUID com outro conteúdo retorna `409`.
 
-HTTP não é um message broker: a solução não oferece exchange, binding, roteamento, DLQ ou isolamento de fluxo por fila. O retry atual é polling simples da outbox; backoff e tratamento explícito de mensagens inválidas ficam para a E5. A migração para RabbitMQ com Docker poderá trocar o transporte e adicionar topologia real, preservando o contrato e o consumidor.
+HTTP não é um message broker: a solução não oferece exchange, binding, roteamento ou DLQ de broker. Na E5, a [ADR-008](ADR-008-retry-e-isolamento-outbox.md) adicionou backoff e isolamento persistido de mensagens inválidas/tentativas esgotadas. O limite de retry pode exigir intervenção: não há garantia de registro eventual durante falhas prolongadas. A migração para RabbitMQ com Docker poderá trocar o transporte e adicionar topologia real, preservando o contrato e o consumidor.
 
 ## Alternativas consideradas
 

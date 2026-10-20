@@ -14,7 +14,7 @@ A intenção de publicar o comando precisa ser persistida junto com o aceite. Is
 - O consumidor persiste o resultado antes de confirmar a resposta HTTP. Reentregas são possíveis e o consumidor é idempotente pelo UUID do boleto.
 - O H2 do perfil de execução usa arquivo para que itens pendentes sobrevivam à reinicialização dos serviços.
 
-Esta decisão não promete entrega exatamente-uma-vez. A garantia é at-least-once: se o registro processar o comando e a resposta se perder antes de o emissor marcar a outbox como entregue, o comando será reenviado. A chave única no registro transforma essa repetição em resposta idempotente.
+Esta decisão não promete entrega exatamente-uma-vez. O modelo permite reentregas (at-least-once): se o registro processar o comando e a resposta se perder antes de o emissor marcar a outbox como entregue, o comando poderá ser reenviado. A chave única no registro transforma essa repetição em resposta idempotente. Na E5, o retry passou a ser limitado (ADR-008); comandos isolados exigem intervenção, sem garantia de registro eventual em uma indisponibilidade prolongada.
 
 ## Alternativas consideradas
 
@@ -26,7 +26,7 @@ Esta decisão não promete entrega exatamente-uma-vez. A garantia é at-least-on
 
 - O `202` só é enviado depois que o aceite e a mensagem outbox foram confirmados na mesma transação local.
 - Uma falha ao consultar ou gravar o aceite impede a resposta de sucesso e retorna `503`.
-- A entrega HTTP é assíncrona e pode ocorrer após o `202`; se o registro estiver indisponível, a mensagem permanece pendente e será tentada novamente.
+- A entrega HTTP é assíncrona e pode ocorrer após o `202`; indisponibilidade provoca retry conforme o limite da ADR-008. A mensagem continua persistida mesmo se esgotar as tentativas e for isolada.
 - O H2 em arquivo melhora a persistência local, mas não substitui uma base de produção gerenciada nem a topologia de um broker.
 
 ## Status

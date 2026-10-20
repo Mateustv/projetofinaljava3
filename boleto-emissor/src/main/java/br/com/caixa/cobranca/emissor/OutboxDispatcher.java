@@ -5,11 +5,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -22,30 +26,77 @@ public class OutboxDispatcher {
     private final ComandoRegistroOutboxRepository repository;
     private final RegistroCommandPublisher publisher;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
+    @Autowired
     public OutboxDispatcher(ComandoRegistroOutboxRepository repository,
                             RegistroCommandPublisher publisher,
                             ObjectMapper objectMapper) {
+        this(repository, publisher, objectMapper, Clock.systemDefaultZone());
+    }
+
+    OutboxDispatcher(ComandoRegistroOutboxRepository repository,
+                     RegistroCommandPublisher publisher,
+                     ObjectMapper objectMapper,
+                     Clock clock) {
         this.repository = repository;
         this.publisher = publisher;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Scheduled(fixedDelayString = "${emissao.outbox.dispatch.interval-ms:1000}")
     public void despacharPendentes() {
-        for (ComandoRegistroOutboxEntity outbox : repository.findTop20ByEntregueEmIsNullOrderByCriadoEmAsc()) {
+        LocalDateTime agora = agora();
+        for (ComandoRegistroOutboxEntity outbox : repository.buscarElegiveis(agora, PageRequest.of(0, 20))) {
+            // Itens pendentes da E4 podem ter ultrapassado o limite antes desta politica.
+            if (outbox.getTentativas() >= ComandoRegistroOutboxEntity.MAX_TENTATIVAS) {
+                outbox.isolar("LIMITE_TENTATIVAS", agora());
+                repository.save(outbox);
+                registrarFalha(outbox);
+                continue;
+            }
             try {
                 RegistrarBoletoCommand comando =
-                        objectMapper.readValue(outbox.getComandoJson(), RegistrarBoletoCommand.class);
+                        outbox.getComandoJson() == null ? null
+                                : objectMapper.readValue(outbox.getComandoJson(), RegistrarBoletoCommand.class);
+                if (comando == null) {
+                    outbox.registrarFalha("COMANDO_NULO", true, agora());
+                    repository.save(outbox);
+                    registrarFalha(outbox);
+                    continue;
+                }
                 publisher.publicar(comando);
-                outbox.registrarEntrega(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+                outbox.registrarEntrega(agora());
                 repository.save(outbox);
-            } catch (RestClientException | JsonProcessingException ex) {
-                outbox.registrarFalha(ex.getClass().getSimpleName());
+                LOGGER.info("Comando entregue. identificador={}, tentativa={}",
+                        outbox.getIdentificador(), outbox.getTentativas());
+            } catch (JsonProcessingException ex) {
+                outbox.registrarFalha("JSON_INVALIDO", true, agora());
                 repository.save(outbox);
-                LOGGER.warn("Falha ao entregar comando de registro. identificador={}, tipo={}",
-                        outbox.getIdentificador(), ex.getClass().getSimpleName());
+                registrarFalha(outbox);
+            } catch (RestClientException ex) {
+                boolean permanente = false;
+                String tipo = ex.getClass().getSimpleName();
+                if (ex instanceof RestClientResponseException resposta) {
+                    int status = resposta.getStatusCode().value();
+                    permanente = status >= 400 && status < 500 && status != 408 && status != 429;
+                    tipo = "HTTP_" + status;
+                }
+                outbox.registrarFalha(tipo, permanente, agora());
+                repository.save(outbox);
+                registrarFalha(outbox);
             }
         }
+    }
+
+    private LocalDateTime agora() {
+        return LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
+    }
+
+    private void registrarFalha(ComandoRegistroOutboxEntity outbox) {
+        LOGGER.warn("Falha na entrega. identificador={}, tentativa={}, tipo={}, isolada={}, proximaTentativa={}",
+                outbox.getIdentificador(), outbox.getTentativas(), outbox.getUltimoErro(),
+                outbox.getFalhaDefinitivaEm() != null, outbox.getProximaTentativaEm());
     }
 }

@@ -14,7 +14,7 @@
 | `central_cobranca_boletos_elicitacao.docx` | Personas, 5 sessões de requisitos e glossário do **nosso** tema |
 | `projeto-guiado-pix/gabarito/aula-0N/` | Código de referência de cada aula (+ `ESTADO.md`) |
 | `plano-de-aulas/aula-0N-aluno.md` | Teoria de cada aula |
-| `projeto-final-grupo/` | E0–E4 implementadas; emissão usa outbox transacional e entrega HTTP assíncrona, com consumidor idempotente. RabbitMQ/Docker e retry/DLQ real ficam para E5. |
+| `projeto-final-grupo/` | E0–E4 implementadas; E5 com resiliência HTTP (retry, isolamento persistido e rejeição de negócio). Topologia e DLQ RabbitMQ permanecem pendentes. |
 
 ### ⚠️ Atenção à numeração (pega muita gente)
 As pastas do gabarito **não** batem 1:1 com os planos de aula:
@@ -93,7 +93,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 - [x] ADR-005 criada como proposta: sem SAGA síncrona/outbox na E2; reavaliar outbox na E4 com o grupo
 - [x] Testes: reenvio igual cria um só registro; conflito não cria outro; concorrência, escala decimal e leitura interna cobertos
 > O gabarito faz aqui uma SAGA **síncrona** (emissor→REST→gravador) que a Aula 4 **substitui** por fila.
-> Não implementamos a versão síncrona: a E2 persiste o aceite; a decisão sobre outbox está na ADR-005 e deve ser ratificada pelo grupo.
+> Não implementamos a versão síncrona: a E2 persiste o aceite; a outbox foi ratificada e implementada na E4 (ADR-005).
 
 ## E3 — Cache na consulta (Aula 4) — *critério 4*
 **Referência:** `aula-03/` (`ConsultaService`, `CacheConfig`), plano aula-04
@@ -119,15 +119,17 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 
 ## E5 — Topologia, retry e DLQ (Aula 6) — *critério 5*
 **Referência:** `aula-05/` (`MessagingConfig`, `application.yml`, `GravacaoListener`), plano aula-06
-**Nota:** o grupo pretende reavaliar RabbitMQ via Docker nesta etapa; a outbox HTTP da E4 não implementa exchange, binding ou DLQ.
+**Nota:** o grupo aprovou resiliência provisória sobre a outbox HTTP (ADR-008). Isso não substitui a topologia de broker; RabbitMQ via Docker permanece como evolução pendente.
 **Conceito:** exchange/binding, ack, backoff, DLQ, poison message.
 **Fazer:**
 - [ ] `registro.ex` → `registro.q` (+ `registro.dlx` → `registro.dlq`)
-- [ ] Retry com backoff (3×) para falha **transitória** (registradora fora do ar)
-- [ ] Falha **permanente** (mensagem inválida) → DLQ com listener que loga **sem vazar dados** (Sessão 5)
-- [ ] Rejeição de negócio → estado `REJEITADO` (não DLQ)
-- [ ] Prova: mensagem envenenada → 3 tentativas → DLQ; mensagem boa segue
-- [ ] ADR-008 retry/DLQ (ou revisar ADR-007 se o grupo optar por unificar as decisões)
+- [x] Retry HTTP com backoff: **três tentativas totais**, esperas de 1 s e 5 s para falha transitória
+- [x] Isolamento persistido na outbox para falha permanente ou limite atingido; logs e API interna sem payload (não é DLQ de broker)
+- [ ] DLQ de broker com listener que loga **sem vazar dados** (Sessão 5)
+- [x] Rejeição de negócio → estado `REJEITADO` (não isolamento técnico)
+- [x] Prova adaptada: JSON inválido isolado imediatamente; 503 → três tentativas → isolamento; mensagem boa segue
+- [ ] Prova equivalente usando RabbitMQ e DLQ reais
+- [x] ADR-008 retry e isolamento da outbox HTTP
 
 ## E6 — Fechamento da base
 - [ ] `README.md` (tema, arquitetura, como rodar, perfil)
@@ -154,7 +156,7 @@ Cada etapa = **1 commit/tag** (`etapa-0`, `etapa-1`…) → evidência de proces
 ## 7. Depois (para completar o CORE e chegar à banca)
 1. **Contract test PACT** (`gabarito/aula-08`, plano aula-08-contract) — **obrigatório no CORE**
 2. Opcional: Kafka/tópico `boleto-registrado` (`aula-06`), `@RetryableTopic` + circuit breaker (`aula-07`)
-3. Opcional: outbox transacional (pedido pelas Sessões 4)
+3. Outbox transacional (pedido pelas Sessões 4): implementada na E4; migração para broker permanece pendente.
 
 ## 8. Sugestão de calendário (hoje 19/10 → banca 26/10)
 | Dia | Etapas |

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,7 +19,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,6 +44,12 @@ class RegistroComandoControllerTest {
 
     @Autowired
     private RegistroBoletoRepository repository;
+
+    @Autowired
+    private RegistroBoletoService service;
+
+    @SpyBean
+    private RegistradoraSimulada registradora;
 
     @BeforeEach
     void limparRegistros() {
@@ -106,7 +120,58 @@ class RegistroComandoControllerTest {
                 .andExpect(jsonPath("$.codigo").value("COMANDO_REGISTRO_INVALIDO"));
     }
 
-    private RegistrarBoletoCommand comando(UUID identificador, String valor) {
+    @Test
+    void jsonMalformadoRetorna400SemExporConteudo() throws Exception {
+        mvc.perform(post("/interno/comandos/registro").contentType(MediaType.APPLICATION_JSON)
+                        .content("{DADO_SENSIVEL_SIMULADO"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("COMANDO_REGISTRO_INVALIDO"))
+                .andExpect(jsonPath("$.mensagem").value("JSON invalido ou com valor fora do formato."));
+        assertEquals(0L, repository.count());
+    }
+
+    @Test
+    void falhaTecnicaRetorna503SemPersistirEReentregaPodeRecuperar() throws Exception {
+        var comando = comando(UUID.randomUUID(), "150.00");
+        doThrow(new FalhaAoRegistrarBoletoException(new IllegalStateException("Indisponivel")))
+                .doCallRealMethod().when(registradora).registrar(comando);
+        String corpo = objectMapper.writeValueAsString(comando);
+
+        mvc.perform(post("/interno/comandos/registro").contentType(MediaType.APPLICATION_JSON).content(corpo))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.codigo").value("FALHA_NO_REGISTRO"));
+        assertEquals(0L, repository.count());
+        mvc.perform(post("/interno/comandos/registro").contentType(MediaType.APPLICATION_JSON).content(corpo))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("REGISTRADO"));
+        assertEquals(1L, repository.count());
+    }
+
+    @Test
+    void reentregasConcorrentesRegistramUmaVez() throws Exception {
+        var comando = comando(UUID.randomUUID(), "150.00");
+        var inicio = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var primeiro = executor.submit(() -> {
+                inicio.await();
+                return service.registrar(comando);
+            });
+            var segundo = executor.submit(() -> {
+                inicio.await();
+                return service.registrar(comando);
+            });
+            inicio.countDown();
+            assertEquals(primeiro.get(10, TimeUnit.SECONDS).boleto(),
+                    segundo.get(10, TimeUnit.SECONDS).boleto());
+            assertEquals(1L, repository.count());
+            verify(registradora, times(1)).registrar(comando);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    static RegistrarBoletoCommand comando(UUID identificador, String valor) {
         LocalDateTime recebimento = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         BoletoAceito aceite = new BoletoAceito(
                 identificador, StatusBoleto.AGUARDANDO_REGISTRO, recebimento);

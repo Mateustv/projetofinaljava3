@@ -31,8 +31,7 @@ public class RegistroPersistenceService {
                     comando.identificador(),
                     comandoJson,
                     comando.aceite().dataHoraRecebimento().truncatedTo(ChronoUnit.MICROS),
-                    resultado.identificador(),
-                    resultado.dataHoraRegistro()
+                    resultado
             ));
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             throw new FalhaAoRegistrarBoletoException(ex);

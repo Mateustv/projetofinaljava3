@@ -1,6 +1,6 @@
 # Arquitetura — Central de Cobrança e Boletos
 
-> **Estado: E4.** Emissão idempotente, outbox transacional, entrega assíncrona HTTP e consulta com cache-aside; detalhes em [`etapas/`](etapas/).
+> **Estado: E5 provisória por HTTP.** Outbox com retry limitado, isolamento persistido e estados finais de negócio; topologia RabbitMQ/DLQ pendente. Detalhes em [`etapas/`](etapas/).
 
 ## Serviços (bounded contexts)
 
@@ -28,7 +28,7 @@ flowchart LR
 4. O despachante entrega o comando ao registro por HTTP em segundo plano → consumidor idempotente simula a registradora e persiste o estado final.
 5. A consulta lê cache; no miss tenta registro e, se ainda não existe, busca o aceite no emissor.
 
-HTTP é provisório, não um message broker. A E5 poderá adicionar RabbitMQ quando houver Docker, sem alterar o contrato do comando nem a regra de processamento.
+HTTP é provisório, não um message broker. O grupo optou por resiliência HTTP na E5; RabbitMQ continua pendente até haver ambiente disponível, preservando o contrato do comando e o processamento.
 
 ## Máquina de estados
 `AGUARDANDO_REGISTRO → REGISTRADO | REJEITADO` (detalhe em `requisitos/glossario-e-regras.md`).
@@ -38,6 +38,8 @@ HTTP é provisório, não um message broker. A E5 poderá adicionar RabbitMQ qua
 
 ## Garantia de entrega e idempotência
 O emissor persiste o aceite e o comando outbox na mesma transação antes de responder. O transporte HTTP tenta entregar pelo menos uma vez; em caso de resposta perdida pode haver reentrega, que o registro trata de forma idempotente usando o UUID.
+
+Na E5, há até três tentativas totais registradas, com backoff de 1 s e 5 s. Erros permanentes ou tentativas esgotadas ficam isolados na própria outbox, fora dos lotes elegíveis. Não há promessa de registro eventual em falhas prolongadas nem replay automático. A API `/interno/outbox/falhas` expõe somente metadados dos 20 isolamentos recentes. Rejeição de negócio é persistida como `REJEITADO` e confirma a entrega, sem entrar no isolamento técnico. Ver [ADR-008](adr/ADR-008-retry-e-isolamento-outbox.md).
 
 ## Consulta e cache
 `boleto-consulta` usa Caffeine cache-aside por UUID: TTL provisório de 30 s para `AGUARDANDO_REGISTRO` e 10 min para estados finais. No miss, consulta registro e usa fallback no emissor somente quando recebe 404. Não cacheia 404; falhas técnicas retornam 503 com correlation ID. Ver [ADR-006](adr/ADR-006-cache-consulta.md).

@@ -13,6 +13,8 @@ import java.util.UUID;
 @Table(name = "comando_registro_outbox")
 public class ComandoRegistroOutboxEntity {
 
+    public static final int MAX_TENTATIVAS = 3;
+
     @Id
     private UUID identificador;
 
@@ -31,6 +33,12 @@ public class ComandoRegistroOutboxEntity {
 
     @Column(name = "ultimo_erro", length = 120)
     private String ultimoErro;
+
+    @Column(name = "proxima_tentativa_em")
+    private LocalDateTime proximaTentativaEm;
+
+    @Column(name = "falha_definitiva_em")
+    private LocalDateTime falhaDefinitivaEm;
 
     protected ComandoRegistroOutboxEntity() {
     }
@@ -65,9 +73,28 @@ public class ComandoRegistroOutboxEntity {
         return ultimoErro;
     }
 
-    public void registrarFalha(String tipoErro) {
+    public LocalDateTime getProximaTentativaEm() {
+        return proximaTentativaEm;
+    }
+
+    public LocalDateTime getFalhaDefinitivaEm() {
+        return falhaDefinitivaEm;
+    }
+
+    public void registrarFalha(String tipoErro, boolean permanente, LocalDateTime agora) {
         tentativas++;
         ultimoErro = tipoErro;
+        if (permanente || tentativas >= MAX_TENTATIVAS) {
+            isolar(tipoErro, agora);
+        } else {
+            proximaTentativaEm = agora.plusSeconds(tentativas == 1 ? 1 : 5);
+        }
+    }
+
+    public void isolar(String tipoErro, LocalDateTime agora) {
+        ultimoErro = tipoErro;
+        falhaDefinitivaEm = agora;
+        proximaTentativaEm = null;
     }
 
     public void registrarEntrega(LocalDateTime entregueEm) {
@@ -75,5 +102,6 @@ public class ComandoRegistroOutboxEntity {
         this.entregueEm = entregueEm;
         comandoJson = null;
         ultimoErro = null;
+        proximaTentativaEm = null;
     }
 }

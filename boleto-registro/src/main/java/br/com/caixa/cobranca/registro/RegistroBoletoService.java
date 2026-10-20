@@ -49,6 +49,8 @@ public class RegistroBoletoService {
                     return new ResultadoRegistro(verificarDuplicata(concorrente.get(), comandoJson), true);
                 }
                 throw new FalhaAoRegistrarBoletoException(ex);
+            } catch (DataAccessException ex) {
+                throw new FalhaAoRegistrarBoletoException(ex);
             }
         } finally {
             trava.unlock();
