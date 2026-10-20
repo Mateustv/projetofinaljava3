@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: boleto-registro
+  artemis:
+    mode: native
+    broker-url: ${BROKER_URL:tcp://127.0.0.1:61616?blockOnDurableSend=true&callTimeout=2000&initialConnectAttempts=1&reconnectAttempts=0}
   # Base H2 PROPRIA do registro (dono do estado do titulo).
   datasource:
     url: ${REGISTRO_DB_URL:jdbc:h2:file:./data/registro;DB_CLOSE_ON_EXIT=FALSE}
@@ -22,6 +25,10 @@ spring:
     property-naming-strategy: SNAKE_CASE
 
 registro:
+  mensageria:
+    enabled: ${REGISTRO_MENSAGERIA_ENABLED:true}
+  http-comandos:
+    enabled: false
   simulacao:
     cenario: ${REGISTRADORA_CENARIO:APROVAR}
 
@@ -30,3 +37,7 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    org.apache.activemq.audit: "OFF"

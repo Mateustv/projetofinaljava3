@@ -10,6 +10,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.jms.JmsException;
+import org.springframework.jms.support.converter.MessageConversionException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -69,10 +71,15 @@ public class OutboxDispatcher {
                 publisher.publicar(comando);
                 outbox.registrarEntrega(agora());
                 repository.save(outbox);
-                LOGGER.info("Comando entregue. identificador={}, tentativa={}",
+                LOGGER.info("Publicacao confirmada. identificador={}, tentativa={}",
                         outbox.getIdentificador(), outbox.getTentativas());
             } catch (JsonProcessingException ex) {
                 outbox.registrarFalha("JSON_INVALIDO", true, agora());
+                repository.save(outbox);
+                registrarFalha(outbox);
+            } catch (JmsException ex) {
+                outbox.registrarFalha(ex.getClass().getSimpleName(),
+                        ex instanceof MessageConversionException, agora());
                 repository.save(outbox);
                 registrarFalha(outbox);
             } catch (RestClientException ex) {

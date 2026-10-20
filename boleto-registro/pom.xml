@@ -16,6 +16,25 @@
 
     <dependencies>
         <dependency>
+            <groupId>br.com.caixa.cobranca</groupId>
+            <artifactId>eventos-outbox</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-artemis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.com.caixa.cobranca</groupId>
+            <artifactId>cobranca-broker</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.com.dius.pact.provider</groupId>
+            <artifactId>junit5</artifactId>
+            <version>${pact.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -40,7 +59,31 @@
     </dependencies>
 
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>${project.basedir}/../shared-contracts</directory>
+                <includes>
+                    <include>pacts/*.json</include>
+                </includes>
+            </testResource>
+        </testResources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <PACT_DO_NOT_TRACK>true</PACT_DO_NOT_TRACK>
+                    </environmentVariables>
+                    <systemPropertyVariables>
+                        <pact_do_not_track>true</pact_do_not_track>
+                        <pact.verifier.publishResults>false</pact.verifier.publishResults>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

@@ -39,4 +39,12 @@ Falha técnica não cria `REJEITADO`: sem confirmação de negócio, a consulta 
 
 ## Status
 
-Aceita para a E5 provisória por HTTP. A parte da topologia e DLQ de broker permanece pendente.
+Aceita para a E5 provisória por HTTP, preservada como histórico. Transporte/topologia migrados na E8 conforme [ADR-011](ADR-011-broker-jvm-artemis.md).
+
+### Atualização E8
+
+Limite/backoff/isolamento da outbox são mantidos para **publicação JMS**, com contadores acumulados, sem reset de isolados. Confirmação é commit JMS no broker, não resultado final. Falha de serialização é permanente; erros JMS de conexão/configuração preservam payload e seguem o orçamento de publicação.
+
+O consumidor tem orçamento separado: três entregas totais do broker e mínimos 1 s/5 s; rollback técnico e quarentena no esgotamento. Erros permanentes são transferidos imediatamente, atomicamente com ack do original. Rejeição de negócio continua final, sem DLQ. Contador persistido no broker antes de entregar; idempotência continua necessária entre commit JPA e ack JMS.
+
+Não há RabbitMQ/DLX, mas há DLQ **Artemis** durável. Credenciais/acesso/auditoria e replay operacional continuam E11/E12. [E8: migração, garantias e evidências](../etapas/E8-broker-jvm.md).

@@ -153,3 +153,68 @@ Cole o trecho `[ERROR]` completo. Pontos prováveis: versão do JDK, `spring-boo
 - [ ] Validação com RabbitMQ, exchanges/bindings e DLQ reais — fora do escopo HTTP aprovado.
 
 Os testes HTTP desta E5 usam servidor local controlado, não os três serviços implantados em processos separados. Os cenários manuais de E4 continuam registrados acima; o roteiro manual atualizado de E5 está em [E5-resiliencia-outbox.md](etapas/E5-resiliencia-outbox.md).
+
+## Validação da E6 — PACT consulta ↔ registro (20/10/2026)
+
+- [x] Consumidor: três cenários contra mock HTTP PACT, com `RestBoletoFonteClient` real, snake_case, UUID/datas e campos condicionais.
+- [x] Provedor: três interações contra aplicação Spring Boot real em porta aleatória, com estados no H2 em memória exclusivo.
+- [x] Um único pact canônico versionado em [shared-contracts/pacts](../shared-contracts/pacts/boleto-consulta-boleto-registro.json); `PactArtifactIT` compara o gerado no consumidor com esse mesmo contrato usado pelo provedor.
+- [x] Verificação direcionada: 3 testes do consumidor, 3 interações do provedor e 1 comparação, todos aprovados.
+- [x] Prova negativa: alterado temporariamente no canônico o status do inexistente de 404 para 200. Execução com `-fae` falhou no provedor (`expected status of 200 but was 404`) e na comparação do artefato. Alteração removida.
+- [x] Após restauração, `mvn -B clean verify`: **BUILD SUCCESS**, **60 testes**, zero falhas/erros/ignorados: 33 emissor, 15 registro, 11 consulta no Surefire e 1 no Failsafe.
+- [x] Execução sem Docker, broker de mensagens, Pact Broker ou serviços externos iniciados previamente. Testes encerram seus recursos; bancos de demonstração não foram usados. Telemetria PACT e publicação de resultados desabilitadas.
+
+Comandos e atualização do contrato: [E6-contratos-pact.md](etapas/E6-contratos-pact.md). `mvn test` não executa a comparação Failsafe; o portão completo é `clean verify`.
+
+Pendências mantidas: dados simulados/histórico E7, broker JVM E8, eventos/invalidação E9 e demais etapas do [roteiro](../ROTEIRO.md). Este resultado não encerra a validação integrada da E14 nem autoriza fechamento antecipado.
+
+## Validação da E7 — contrato funcional (20/10/2026)
+
+- [x] Matriz de campos consolidada, com 54 novos casos de ausência/formato/limite/condicionais no emissor; mesma validação estrutural reutilizada pelo registro.
+- [x] 19 casos de comando sem obrigatório e UUID fora do contrato recusados antes de chamar a registradora; erro não grava resultado nem operação simulada.
+- [x] Novos aprovados persistem/expõem marcadores não pagáveis; rejeição e transitório sem dados de pagamento. PACT consumidor/canônico/provedor e projeção pública atualizados.
+- [x] Histórico mínimo de origem/transição final persistido junto com o novo resultado; reentrega não duplica histórico nem chama a registradora de novo.
+- [x] Ledger simulado em transação independente: resposta perdida na aprovação/rejeição, falha local e rollback após flush recuperam o mesmo resultado, sem segundo efeito externo.
+- [x] Mesmo UUID/conteúdo diferente conflita mesmo sem resultado local; resposta salva não é recalculada quando o cenário muda.
+- [x] Finais legados preservados sem reprocessamento ou fatos retroativos inventados; teste com schema E4 continua verde.
+- [x] Inserção exclusiva no ledger com UUID atribuído (versão JPA inicialmente nula); chamadas concorrentes com conteúdo diferente não sobrescrevem a operação vencedora.
+- [x] `mvn -B clean verify`: **BUILD SUCCESS**, **146 testes**, zero falhas/erros/ignorados: 87 emissor, 47 registro, 11 consulta Surefire e 1 Failsafe.
+
+Detalhes e matriz: [E7](etapas/E7-contrato-funcional.md). Sem Docker, processos permanentes ou alteração dos bancos de demonstração. Nenhum teste de carga/broker/jornada completa dos três processos foi executado nesta etapa.
+
+Próxima entrega: E8, seleção/validação e integração de broker JVM para comandos; eventos E9, auditoria E11 e operação E12 permanecem pendentes. Fechamento E15 continua bloqueado até o aceite integrado.
+
+## Validação da E8 — Artemis em JVM (20/10/2026)
+
+- [x] Dependências Artemis 2.33.0/Jakarta JMS disponíveis; Java 17/Windows e Spring Boot 3.3.5. Broker standalone com journal NIO e filas ANYCAST duráveis.
+- [x] TCP real em porta isolada e validação explícita de argumentos. Ativação real exigida antes de anunciar prontidão; conflito de porta diagnosticado sem encerrar processo alheio.
+- [x] Commit JMS antes de concluir a outbox; destino/fila ausente não confirma envio. Publicação sem binding tem encaminhamento à quarentena.
+- [x] Mensagem confirmada e quarentena sobrevivem a reinício. Contador de entrega persistido não zera; commit/rollback e mínimos de redelivery 1 s/5 s verificados.
+- [x] Duas assinaturas MULTICAST duráveis, uma offline, recebem independentemente e preservam a pendência após reinício. Capacidade para E9, não eventos de produção já implementados.
+- [x] Outbox JMS/H2: indisponibilidade, confirmação perdida/duplicata, consumidor offline, reinício e migração sem reiniciar isolados/entregues nem perder contador/backoff.
+- [x] Listener real/JMS/JPA: idempotência e histórico/efeito únicos; inválido/conflito/corpo não textual para quarentena; temporário esgota três entregas sem impedir o bom; rejeição de negócio confirma, sem DLQ.
+- [x] Falha após commit JPA antes de ack JMS e rollback JPA após efeito externo recuperam sem duplicar efeito/histórico. Falha de envio à quarentena reverte o original, inclusive destino com endereço sem fila.
+- [x] `mvn -B clean verify`: **BUILD SUCCESS, 177 testes**, zero falhas/erros/ignorados. Relatórios XML: **12 broker, 93 emissor, 60 registro, 11 consulta Surefire + 1 Failsafe**. PACT e regressão E1–E7 preservados.
+- [x] Quatro JVMs/arquivos isolados, porta alternativa 61617: emissão 202 com registro offline, confirmação do broker, reinício com mensagem pendente, início do consumidor e consultas interna/pública `REGISTRADO`. Health dos três serviços HTTP 200/UP; endpoint de comandos HTTP legado 404.
+- [x] Processos usados no teste encerrados; nenhuma exclusão de banco de demonstração anterior.
+
+Operação, migração, nomes dos testes e limitações: [E8](etapas/E8-broker-jvm.md) / [ADR-011](adr/ADR-011-broker-jvm-artemis.md). Na máquina, 61616 estava ocupada em estado **Bound**: filtrar apenas Listen não detectava o conflito. Foi usada 61617, sem interferência em processos alheios.
+
+Na E8, a próxima entrega era E9, validada abaixo. Proteção E11, replay/retenção E12, carga/jornadas/reprodução E14 e fechamento E15 continuam pendentes. Essa validação não declara ambiente pronto para produção.
+
+## Validação da E9 — Eventos e invalidação
+
+- [x] Envelopes dos três tipos com exatamente sete campos, status consistente e obrigatórios validados; sem dados pessoais/valor.
+- [x] Aceite + comando + intenção atômicos sem broker. Duplicata/conflito não criam outro evento; falha depois de flush reverte tudo.
+- [x] Aprovação/rejeição + histórico + intenção atômicos. Falha de intenção/rollback externo desfazem estado e evento, mas preservam ledger independente; reentrega recupera resultado sem duplicação. Final legado não recebe evento inventado.
+- [x] Publicação após commit, confirmação JMS, três tentativas/1 s/5 s e isolamento sem bloquear item bom. Falha local após commit JMS repete o mesmo id; ausência da assinatura não marca publicado.
+- [x] Dois assinantes duráveis independentes; consulta consome e o outro permanece offline. Reinício preserva a cópia pendente, rollback causa reentrega.
+- [x] Listener real da consulta invalida após evento final antes do TTL; duplicatas/ordem não projetam nem rebaixam estado. Outro boleto preserva cache hit.
+- [x] Corrida determinística com latches: miss/preenchimento em andamento × evento; invalidar aguarda a leitura, remove preenchimento e só então confirma JMS.
+- [x] Falha antes do ack causa reentrega; falha de invalidar esgota três entregas na quarentena sem bloquear bom. JSON/envelope/corpo inválidos preservados na quarentena.
+- [x] `mvn -B clean verify`: **BUILD SUCCESS, 214 testes**, zero falhas/erros/ignorados. **12 broker, 17 eventos-outbox, 96 emissor, 65 registro, 23 consulta Surefire + 1 Failsafe**. PACT e regressões anteriores preservados.
+- [x] Regressão inicial encontrou configuração JPA importada no main contaminando `@JsonTest`; corrigido por component scan delimitado. Reexecução direcionada confirmou 54 testes de regras JSON e 8 de atomicidade, seguida de regressão limpa completa.
+
+Operação, matriz e restrições: [E9](etapas/E9-eventos-e-cache.md), [ADR-012](adr/ADR-012-eventos-e-invalidacao.md). Testes de eventos usam Artemis/H2 reais, mas fontes HTTP simuladas na consulta; não são nova prova de quatro JVMs. Execução integrada completa e reprodução por outro integrante continuam E14. Uma instância de cada serviço; consultas adicionais com cache local precisariam de assinaturas exclusivas.
+
+Próxima entrega **E10**: resiliência das dependências e correlação ponta a ponta. Sem fechamento antecipado; E15 somente após E14.

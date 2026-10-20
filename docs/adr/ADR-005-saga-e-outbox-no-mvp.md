@@ -31,4 +31,8 @@ Esta decisão não promete entrega exatamente-uma-vez. O modelo permite reentreg
 
 ## Status
 
-**Aceita para o MVP na E4; transporte HTTP provisório, com migração a RabbitMQ planejada quando Docker estiver disponível.**
+**Aceita para o MVP na E4; outbox transacional preservada.** A direção de transporte foi atualizada na [ADR-007](ADR-007-transporte-assincrono.md): broker JVM sem Docker na E8/E9, não aguardar RabbitMQ/Docker.
+
+Consolidação E7: transporte indisponível não impede sozinho o 202 se aceite + outbox foram confirmados; falha nessa persistência retorna 503. A [ADR-010](ADR-010-contrato-funcional-e-idempotencia-registradora.md) acrescenta idempotência durável da registradora simulada e histórico transacional local, sem prometer atomicidade distribuída.
+
+Atualização E8: [ADR-011](ADR-011-broker-jvm-artemis.md) implementa Artemis/Jakarta JMS sem alterar a transação de aceite/outbox. Publicação confirmada agora significa commit no broker, não registro concluído. Pendentes antigos mantêm UUID/contadores/backoff; isolados não são reiniciados. Consumidor confirma JMS após commit JPA; duplicatas entre transações são absorvidas pelo domínio E7.

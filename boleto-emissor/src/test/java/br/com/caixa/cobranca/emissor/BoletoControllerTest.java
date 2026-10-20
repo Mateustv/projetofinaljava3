@@ -49,7 +49,7 @@ class BoletoControllerTest {
     private static final String ENDERECO = """
             {"logradouro":"Rua A, 1","cidade":"Brasilia","uf":"DF","cep":"70000000"}""";
 
-    private static String corpo(String convenio, String numeroControle, String valor) {
+    static String corpo(String convenio, String numeroControle, String valor) {
         return """
                 {
                   "convenio": "%s",

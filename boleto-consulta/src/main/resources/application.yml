@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: boleto-consulta
+  artemis:
+    mode: native
+    broker-url: ${BROKER_URL:tcp://127.0.0.1:61616?blockOnDurableSend=true&callTimeout=2000&initialConnectAttempts=1&reconnectAttempts=0}
   jackson:
     property-naming-strategy: SNAKE_CASE
 
@@ -18,3 +21,11 @@ management:
     web:
       exposure:
         include: health,info
+
+consulta:
+  eventos:
+    enabled: ${CONSULTA_EVENTOS_ENABLED:true}
+
+logging:
+  level:
+    org.apache.activemq.audit: "OFF"

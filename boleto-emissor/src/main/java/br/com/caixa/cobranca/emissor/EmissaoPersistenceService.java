@@ -3,6 +3,9 @@ package br.com.caixa.cobranca.emissor;
 import br.com.caixa.cobranca.contracts.BoletoAceito;
 import br.com.caixa.cobranca.contracts.EmitirBoletoRequest;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
+import br.com.caixa.cobranca.contracts.EventoBoleto;
+import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
+import br.com.caixa.cobranca.eventos.EventoOutboxService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -18,13 +21,15 @@ public class EmissaoPersistenceService {
     private final EmissaoAceitaRepository emissaoRepository;
     private final ComandoRegistroOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final EventoOutboxService eventos;
 
     public EmissaoPersistenceService(EmissaoAceitaRepository emissaoRepository,
                                      ComandoRegistroOutboxRepository outboxRepository,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper, EventoOutboxService eventos) {
         this.emissaoRepository = emissaoRepository;
         this.outboxRepository = outboxRepository;
         this.objectMapper = objectMapper;
+        this.eventos = eventos;
     }
 
     @Transactional
@@ -55,6 +60,8 @@ public class EmissaoPersistenceService {
             throw new FalhaAoAceitarEmissaoException(ex);
         }
 
+        eventos.adicionar(new EventoBoleto(UUID.randomUUID(), TipoEventoBoleto.EmissaoAceita,
+                aceite.identificador(), request.convenio(), aceite.status(), recebimento, aceite.identificador()));
         return aceite;
     }
 }

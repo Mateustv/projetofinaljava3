@@ -1,16 +1,20 @@
 package br.com.caixa.cobranca.registro;
 
+import br.com.caixa.cobranca.contracts.StatusBoleto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,6 +35,9 @@ class RegistroRejeitadoTest {
 
     @Autowired
     private RegistroBoletoRepository repository;
+
+    @SpyBean
+    private RegistradoraSimulada registradora;
 
     @Test
     void rejeicaoEPersistidaComoResultadoDeNegocioEReentregaNaoDuplica() throws Exception {
@@ -53,5 +60,10 @@ class RegistroRejeitadoTest {
                 .andExpect(jsonPath("$.linha_digitavel").doesNotExist())
                 .andExpect(jsonPath("$.codigo_barras").doesNotExist());
         assertEquals(1L, repository.count());
+        var historico = repository.findById(comando.identificador()).orElseThrow().getHistorico();
+        assertEquals(2, historico.size());
+        assertEquals(StatusBoleto.AGUARDANDO_REGISTRO, historico.get(0).getStatus());
+        assertEquals(StatusBoleto.REJEITADO, historico.get(1).getStatus());
+        verify(registradora, times(1)).registrar(comando);
     }
 }

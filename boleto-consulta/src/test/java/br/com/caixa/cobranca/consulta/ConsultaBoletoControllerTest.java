@@ -102,16 +102,16 @@ class ConsultaBoletoControllerTest {
         UUID id = UUID.randomUUID();
         when(registro.buscar(id)).thenReturn(new BoletoConsulta(
                 id, StatusBoleto.REGISTRADO, LocalDateTime.now(),
-                "12345.67890 12345.678901 12345.678901 1 12345678901234",
-                "12345678901234567890123456789012345678901234",
+                "NAO-PAGAVEL-SIM-LINHA-" + id,
+                "NAO-PAGAVEL-SIM-BARRAS-" + id,
                 "REG-001", LocalDateTime.now(), "nao-expor", "nao-expor"
         ));
 
         mvc.perform(get("/boletos/{identificador}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("REGISTRADO"))
-                .andExpect(jsonPath("$.linha_digitavel").exists())
-                .andExpect(jsonPath("$.codigo_barras").exists())
+                .andExpect(jsonPath("$.linha_digitavel").value("NAO-PAGAVEL-SIM-LINHA-" + id))
+                .andExpect(jsonPath("$.codigo_barras").value("NAO-PAGAVEL-SIM-BARRAS-" + id))
                 .andExpect(jsonPath("$.codigo_rejeicao").doesNotExist());
     }
 

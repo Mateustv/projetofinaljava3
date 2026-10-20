@@ -82,6 +82,8 @@ Os testes HTTP da outbox usam servidor local de teste, o cliente real de transpo
 
 ## O que ainda não foi entregue
 
-Esta é a **parte de resiliência da E5 adaptada ao transporte HTTP**, aprovada pelo grupo. Não implementa RabbitMQ, exchange, binding, DLX ou DLQ de broker; esses itens continuam desmarcados no roteiro. PACT e fechamento E6 também continuam pendentes.
+Esta é a **parte de resiliência da E5 adaptada ao transporte HTTP**, aprovada pelo grupo. Não implementa RabbitMQ, exchange, binding, DLX ou DLQ de broker.
+
+**Atualização após a revisão do roteiro:** comandos serão migrados para broker JVM na E8, sem Docker; eventos pelo mesmo broker na E9. PACT foi entregue na [E6](E6-contratos-pact.md). O fechamento foi movido para E15 e continua bloqueado até o aceite integrado.
 
 Detalhes da decisão: [ADR-008](../adr/ADR-008-retry-e-isolamento-outbox.md).

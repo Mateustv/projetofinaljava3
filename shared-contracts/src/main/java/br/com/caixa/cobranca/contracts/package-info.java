@@ -1,5 +1,6 @@
 /**
  * Contratos compartilhados entre os servicos da Central de Cobranca.
- * Na E0 esta vazio; recebe records (comandos/eventos/DTOs) a partir da E1/E4.
+ * Records, envelopes minimos de eventos e validacao estrutural nas fronteiras.
+ * Sem dependencias Spring ou persistencia.
  */
 package br.com.caixa.cobranca.contracts;

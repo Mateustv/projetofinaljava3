@@ -2,12 +2,10 @@ package br.com.caixa.cobranca.emissor;
 
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-@Component
 public class HttpRegistroCommandPublisher implements RegistroCommandPublisher {
 
     private final RestClient restClient;

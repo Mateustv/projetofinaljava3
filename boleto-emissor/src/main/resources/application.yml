@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: boleto-emissor
+  artemis:
+    mode: native
+    broker-url: ${BROKER_URL:tcp://127.0.0.1:61616?blockOnDurableSend=true&callTimeout=2000&initialConnectAttempts=1&reconnectAttempts=0}
   # Base H2 PROPRIA do emissor (nenhum outro servico acessa esta base).
   datasource:
     url: ${EMISSOR_DB_URL:jdbc:h2:file:./data/emissor;DB_CLOSE_ON_EXIT=FALSE}
@@ -18,10 +21,6 @@ spring:
     # JSON do contrato em snake_case (numero_controle_cliente, valor_nominal...)
     property-naming-strategy: SNAKE_CASE
 
-integracao:
-  registro:
-    url: ${REGISTRO_URL:http://localhost:8082}
-
 emissao:
   outbox:
     dispatch:
@@ -33,3 +32,7 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    org.apache.activemq.audit: "OFF"

@@ -19,7 +19,7 @@
 - **Dado** juros/multa/desconto/abatimento informados sem seus complementos, **então** 400.
 - **Dado** vencimento anterior à emissão ou valor ≤ 0, **então** 400.
 - **Dado** que a resposta 202 foi dada, **então** o aceite já está **persistido** (não depende da fila para existir).
-- **Dado** que não é possível aceitar com segurança (ex.: broker indisponível), **então** responde **503** e não 202.
+- **Dado** que não é possível aceitar com segurança, **então** responde **503** e não 202. Com a outbox transacional, transporte/broker indisponível **não impede sozinho o aceite**: na E9, `202` só após confirmar aceite + comando + intenção de evento no banco; falha nessa persistência retorna 503 ([ADR-005](../docs/adr/ADR-005-saga-e-outbox-no-mvp.md), [ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md)).
 
 ### US-02 — Idempotência da emissão
 **Como** sistema emissor, **quero** reenviar a mesma solicitação sem duplicar boleto.
@@ -33,6 +33,8 @@
 - **Dado** um aceite, **quando** a mensagem é consumida, **então** o consumidor chama a registradora e atualiza o estado para `REGISTRADO` (com linha digitável, código de barras, id definitivo, data/hora) ou `REJEITADO` (com código e motivo).
 - **Dado** a resposta ao chamador, **então** ela **não espera** o registro.
 - **Dado** que toda solicitação aceita deve terminar `REGISTRADO` ou `REJEITADO`, **então** o histórico das transições é guardado.
+
+> Perfil didático E7: os campos de pagamento são marcadores `NAO-PAGAVEL-SIM-...`, não sequências bancárias válidas. O aceite fica no emissor; novos resultados e histórico de origem/transição final são persistidos atomicamente no registro. Finais pre-E7 são preservados sem inventar dados/histórico retroativo. Detalhes e limites na [E7](../docs/etapas/E7-contrato-funcional.md).
 
 ---
 
@@ -59,7 +61,7 @@
 ## Épico 3 — Confiabilidade
 
 ### US-06 — Retentativa de falhas temporárias
-- **Dado** registradora indisponível/timeout/5xx, **então** o sistema retenta com backoff **[PREMISSA]** (3×; 1 s/2 s/4 s; timeout 5 s) sem descartar a mensagem.
+- **Dado** registradora indisponível/timeout/5xx, **então** o sistema retenta com backoff sem descartar a mensagem. A premissa original de 3× e 1 s/2 s/4 s foi substituída pela [ADR-008](../docs/adr/ADR-008-retry-e-isolamento-outbox.md). Na E8, a [ADR-011](../docs/adr/ADR-011-broker-jvm-artemis.md) preserva **três tentativas totais e mínimos de 1 s/5 s por fronteira**: publicação da outbox e processamento pelo broker. Esgotamento do produtor preserva no H2; do consumidor vai à quarentena Artemis. Não há retry de negócio no produtor nem garantia de término após isolamento.
 
 ### US-07 — DLQ para falhas permanentes
 - **Dado** mensagem que esgota as tentativas ou é malformada, **então** vai para a DLQ **com contexto da falha**; DLQ é quarentena (acesso restrito, reprocesso auditado).
@@ -104,15 +106,21 @@ Pagamento/liquidação; alteração, cancelamento, protesto, negativação; baix
 
 ## Rastreabilidade (história → sessão → etapa do projeto)
 
-| História | Sessão | Etapa do `ROTEIRO.md` | Critério da rubrica |
-|---|:-:|:-:|:-:|
-| US-01 | 1, 2 | E1 | 1 |
-| US-02 | 2 | E2 | 3 |
-| US-03 | 1, 4 | E4 | 2 |
-| US-04 | 3 | E3 | 4 |
-| US-05 | 3 | E3 | 4 |
-| US-06 | 4 | E5 | 5 |
-| US-07 | 4 | E5 | 5 |
-| US-08 | 4 | E4 | 3 |
-| US-09 | 4 | opcional (Kafka/outbox) | 2, 3 |
-| US-10–12 | 5 | opcional / ADR | 7 |
+O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite completo. As sessões continuam preservadas como histórico; premissas substituídas remetem à decisão vigente.
+
+| História | Sessão | Base implementada | Complemento/aceite planejado | Critério da rubrica relacionado |
+|---|:-:|---|---|:-:|
+| US-01 | 1, 2 | E1/E2 — aceite persistido; E7 — matriz e validação estrutural compartilhada, 202/outbox esclarecido | E14: jornada integrada | 1, 3 |
+| US-02 | 2 | E2 — chave, fingerprint e conflito; E7 — regressão preservada | E14: jornada integrada | 3 |
+| US-03 | 1, 4 | E7 — dados não pagáveis/histórico; E8 — fila durável Artemis e prova em processos separados | E14: jornadas integradas | 1, 2 |
+| US-04 | 3 | E3/E5 — consulta por estado; E6/E7 — PACT e dados simulados atualizados | E11: autorização; E14: aceite | 4, 6 |
+| US-05 | 3 | E3 — cache-aside/TTL; E9 — invalidação final e corrida com preenchimento testada | E11: acesso inclusive cache hit; E14: p95/expiração e aceite integrado | 4 |
+| US-06 | 4 | E8 — publicação limitada na outbox e redelivery do broker; mínimos 1 s/5 s por fronteira | E10: resiliência das demais dependências | 5 |
+| US-07 | 4 | E8 — isolamento produtor e DLQ Artemis durável; transferência atômica de inválidos | E11/E12: acesso e reprocessamento auditado | 5 |
+| US-08 | 4 | E4 — consumidor idempotente; E7 — ledger externo simulado, resposta perdida/rollback recuperáveis | E12/E14: replay operacional e recuperação integrada | 3 |
+| US-09 | 4 | E9 — três eventos mínimos, outbox local de aceite/resultado, assinaturas duráveis independentes e reinício | E10: correlação HTTP; E11/E12: proteção e recuperação; E14: aceite integrado | 2, 3 |
+| US-10 | 5 | Logs parciais, sem trilha completa | E10: correlação; E11/E12: auditoria e replay | 7, 9 |
+| US-11 | 5 | Sem autorização implementada | E11: proteção de todos os canais; E14: testes de acesso | 1, 7 |
+| US-12 | 5 | Premissa de retenção documentada | E12: política, marco e limites; expurgo automático fora do MVP | 7 |
+
+US-09–12 são **requisitos do tema**, não opcionais automáticos. A tecnologia Kafka pode ser opcional na rubrica geral; isso não elimina os eventos acordados na Sessão 4. Mudanças de escopo exigem decisão explícita. E14 reúne as evidências de aceite e **E15 é o fechamento, somente depois**.

@@ -21,6 +21,8 @@
     <!-- Ordem importa: shared-contracts primeiro, pois os servicos dependem dele. -->
     <modules>
         <module>shared-contracts</module>
+        <module>eventos-outbox</module>
+        <module>cobranca-broker</module>
         <module>boleto-emissor</module>
         <module>boleto-registro</module>
         <module>boleto-consulta</module>
@@ -30,14 +32,25 @@
         <!-- Java 17: e o JDK instalado nas maquinas do grupo (o gabarito PIX usa 21; ver ADR-001). -->
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <pact.version>4.6.14</pact.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>br.com.caixa.cobranca</groupId>
+                <artifactId>eventos-outbox</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- Versao do shared-contracts definida aqui; modulos declaram sem versao. -->
             <dependency>
                 <groupId>br.com.caixa.cobranca</groupId>
                 <artifactId>shared-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.com.caixa.cobranca</groupId>
+                <artifactId>cobranca-broker</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
@@ -52,13 +65,9 @@
         </dependency>
     </dependencies>
 
-    <!--
-      PERFIS DE EXECUCAO (exigidos pelo brief). Na E0 estao vazios de proposito:
-      cada etapa adiciona aqui as dependencias de infraestrutura que passa a usar
-      (E3 cache, E4/E5 fila). Assim so entra no projeto o que ja foi explicado.
-    -->
+    <!-- Entrega em JVM: os perfis de referencia nao instalam outra infraestrutura. -->
     <profiles>
-        <!-- Plano A: infraestrutura real via Docker (referencia; nao usado pela turma). -->
+        <!-- Referencia conceitual; nao e um ambiente Docker operacional. -->
         <profile>
             <id>plano-a-docker</id>
         </profile>
@@ -71,7 +80,7 @@
             </activation>
         </profile>
 
-        <!-- Plano C: conceitual, event bus em memoria (fallback se faltar artefato no Nexus). -->
+        <!-- Referencia conceitual; nao altera o transporte nem cria fallback automatico. -->
         <profile>
             <id>plano-c-conceitual</id>
         </profile>

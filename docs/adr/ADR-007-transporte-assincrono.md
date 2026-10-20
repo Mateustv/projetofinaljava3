@@ -33,4 +33,18 @@ HTTP não é um message broker: a solução não oferece exchange, binding, rote
 
 ## Status
 
-**Aceita pelo grupo para a E4. Reavaliar na E5 quando Docker/RabbitMQ estiver disponível.**
+**Aceita pelo grupo para E4/E5; transporte substituído na E8 pela [ADR-011](ADR-011-broker-jvm-artemis.md).** Texto acima preservado como histórico.
+
+### Atualização de direção — 20/10/2026
+
+O grupo confirmou que **Docker não será utilizado na entrega**. A migração planejada deixa de aguardar RabbitMQ/Docker: comandos usarão fila em **broker executado em JVM (E8)**, e os eventos de domínio usarão publicação/assinatura pelo **mesmo broker (E9)**.
+
+A tecnologia será selecionada após verificar disponibilidade no ambiente/Nexus, compatibilidade Java 17/Spring Boot 3.3, persistência, confirmação, assinaturas duráveis e quarentena. A E8 registrará a decisão técnica e a migração, preservando outbox e idempotência. Não há broker implementado nesta atualização documental nem fallback HTTP automático aprovado para indisponibilidade do broker.
+
+A alternativa RabbitMQ/Docker acima fica preservada como histórico da E4, não como destino da entrega. Plano e critérios de aceite: [roteiro final](../../ROTEIRO.md).
+
+### Migração validada na E8
+
+Artemis/Jakarta JMS em JVM separada substituiu o publicador HTTP, que deixou de ser bean. Endpoint HTTP de comandos desativado por padrão; leitura GET permanece HTTP. Aceite/outbox/idempotência preservados; pendentes mantêm UUID/contadores/backoff e isolados/entregues antigos não são reiniciados.
+
+Nova confirmação da outbox significa **commit no broker**, não conclusão no registro. O consumidor confirma JMS após commit JPA; duplicatas na janela entre transações são absorvidas pela E7. Execução e evidências: [E8](../etapas/E8-broker-jvm.md). Sem fallback HTTP automático.

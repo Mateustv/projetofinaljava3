@@ -16,6 +16,7 @@
 
     <!--
       Mantenha este modulo POBRE em dependencias: ele e o acoplamento INTENCIONAL
-      entre servicos. So contratos (records), nunca regra de negocio.
+      entre servicos. Records e validacao estrutural do contrato, sem Spring,
+      persistencia ou regras de processamento do registro.
     -->
 </project>

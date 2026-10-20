@@ -3,6 +3,7 @@ package br.com.caixa.cobranca.registro;
 import br.com.caixa.cobranca.contracts.BoletoConsulta;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.contracts.StatusBoleto;
+import br.com.caixa.cobranca.contracts.SolicitacaoBoletoValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataAccessException;
@@ -17,6 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class RegistroBoletoService {
 
     private static final int QUANTIDADE_TRAVAS = 64;
+    private final SolicitacaoBoletoValidator validator = new SolicitacaoBoletoValidator();
 
     private final RegistroBoletoRepository repository;
     private final RegistroPersistenceService persistencia;
@@ -87,7 +89,10 @@ public class RegistroBoletoService {
                 || comando.solicitacao() == null
                 || !comando.identificador().equals(comando.aceite().identificador())
                 || comando.aceite().status() != StatusBoleto.AGUARDANDO_REGISTRO
-                || comando.aceite().dataHoraRecebimento() == null) {
+                || comando.aceite().dataHoraRecebimento() == null
+                || comando.identificador().version() != 4
+                || comando.identificador().variant() != 2
+                || !validator.validar(comando.solicitacao()).isEmpty()) {
             throw new ComandoRegistroInvalidoException();
         }
     }

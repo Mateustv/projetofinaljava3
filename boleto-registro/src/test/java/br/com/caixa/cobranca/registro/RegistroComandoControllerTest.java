@@ -4,6 +4,9 @@ import br.com.caixa.cobranca.contracts.BoletoAceito;
 import br.com.caixa.cobranca.contracts.EmitirBoletoRequest;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.contracts.StatusBoleto;
+import br.com.caixa.cobranca.contracts.Pessoa;
+import br.com.caixa.cobranca.contracts.Endereco;
+import br.com.caixa.cobranca.contracts.TipoDocumento;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -178,8 +181,10 @@ class RegistroComandoControllerTest {
         EmitirBoletoRequest solicitacao = new EmitirBoletoRequest(
                 "123456",
                 "NF-REG-" + identificador.toString().substring(0, 8),
-                null,
-                null,
+                new Pessoa("Empresa ficticia", TipoDocumento.CNPJ, "12345678000195",
+                        new Endereco("Rua ficticia", "Brasilia", "DF", "70000000")),
+                new Pessoa("Pessoa ficticia", TipoDocumento.CPF, "12345678909",
+                        new Endereco("Rua ficticia", "Brasilia", "DF", "70000000")),
                 new BigDecimal(valor),
                 LocalDate.now(),
                 LocalDate.now().plusDays(30),
