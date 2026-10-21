@@ -6,9 +6,11 @@ Projeto final em grupo — BE-JV-010 (Nível III). Escopo: **CORE**.
 
 Para entender o projeto sem ter acompanhado sua construção, leia o [guia didático do projeto](docs/guia-do-projeto.md): problema, conceitos, fluxo completo, função das classes, tecnologias, dados, testes e perguntas para a defesa. O guia distingue implementação, simulação e pendências; este README mantém os comandos de execução.
 
+Para experimentar visualmente, use o **[laboratório web do fluxo real](docs/painel-demonstracao.md)**: emissão, idempotência/409, registro/rejeição, eventos, cache e retry/quarentena na tela. É opcional e local, solicitado para estudo; não adiciona obrigação à rubrica. O perfil `demonstracao` deve estar ativo nos três serviços; após iniciá-los conforme o guia, abra **http://127.0.0.1:8083/demonstracao**. Não há animações presumindo sucesso.
+
 ## Situação e próximos passos
 
-E0–E10 implementadas; a base técnica dos critérios tem evidência. Em 20/10/2026, o usuário informou a orientação do professor de **seguir apenas os critérios de avaliação**. O [novo roteiro](ROTEIRO.md) contém somente três etapas restantes: **F1 — conferir a demonstração final; F2 — concluir documentos/autoavaliação; F3 — fechar a entrega e preparar a defesa**. Não há nova funcionalidade planejada.
+E0–E10 implementadas; a base técnica dos critérios tem evidência. Em 20/10/2026, o usuário informou a orientação do professor de **seguir apenas os critérios de avaliação**. O [novo roteiro](ROTEIRO.md) contém somente três etapas restantes: **F1 — conferir a demonstração final; F2 — concluir documentos/autoavaliação; F3 — fechar a entrega e preparar a defesa**. Não há nova funcionalidade obrigatória planejada; o painel é apoio didático solicitado à parte.
 
 **O fechamento continua por último, na F3.** E11/E12 e carga/backup completo não são mais portões de conclusão. Os requisitos originais do tema permanecem registrados, mas os controles da Sessão 5 e replay auditado **não foram implementados nem serão apresentados como feitos**. A orientação docente relatada define o escopo, não garante nota nem conformidade institucional: [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md). Grupo com **três integrantes**, sem opcionais adicionais obrigatórios.
 
@@ -65,7 +67,7 @@ Para preferir `mvn -pl ... spring-boot:run` nos serviços, execute antes `mvn -B
 
 ## Contratos executáveis (E6)
 
-`mvn -B clean verify` executa os testes e o PACT **consulta ↔ registro**, sem Docker ou serviços previamente iniciados. Os testes iniciam brokers reais isolados com journal temporário; nenhum teste depende de broker externo. O consumidor usa o cliente REST real; o provedor sobe HTTP real com H2 em memória; uma comparação no Failsafe impede que o pact gerado divirja do [contrato canônico](shared-contracts/pacts/boleto-consulta-boleto-registro.json). Apenas `mvn test` não executa essa comparação final. Último build limpo E10: **265 testes aprovados**, incluindo PACT. Histórico: [E6](docs/etapas/E6-contratos-pact.md), [E7](docs/etapas/E7-contrato-funcional.md), [E8](docs/etapas/E8-broker-jvm.md), [E9](docs/etapas/E9-eventos-e-cache.md) e [E10](docs/etapas/E10-resiliencia-e-correlacao.md).
+`mvn -B clean verify` executa os testes e o PACT **consulta ↔ registro**, sem Docker ou serviços previamente iniciados. Os testes iniciam brokers reais isolados com journal temporário; nenhum teste depende de broker externo. O consumidor usa o cliente REST real; o provedor sobe HTTP real com H2 em memória; uma comparação no Failsafe impede que o pact gerado divirja do [contrato canônico](shared-contracts/pacts/boleto-consulta-boleto-registro.json). Apenas `mvn test` não executa essa comparação final. Último build limpo, após o painel: **277 testes aprovados**, incluindo PACT; [validações atuais](docs/validacao-pendente.md#painel-web-didático--21102026). Histórico: [E6](docs/etapas/E6-contratos-pact.md), [E7](docs/etapas/E7-contrato-funcional.md), [E8](docs/etapas/E8-broker-jvm.md), [E9](docs/etapas/E9-eventos-e-cache.md) e [E10](docs/etapas/E10-resiliencia-e-correlacao.md).
 
 ## Contrato funcional e dados de demonstração (E7)
 

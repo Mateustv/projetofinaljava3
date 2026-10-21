@@ -42,6 +42,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ConsultaBoletoControllerTest {
 
+    @Test
+    void demonstracaoNaoEstaDisponivelNaExecucaoNormal() throws Exception {
+        for (String path : new String[]{"/demonstracao", "/demonstracao/painel.js",
+                "/demonstracao/painel.css", "/demonstracao/rastros/" + UUID.randomUUID(),
+                "/demonstracao/api/fluxos/" + UUID.randomUUID()}) {
+            mvc.perform(get(path)).andExpect(status().isNotFound());
+        }
+    }
+
     @Autowired
     private MockMvc mvc;
 

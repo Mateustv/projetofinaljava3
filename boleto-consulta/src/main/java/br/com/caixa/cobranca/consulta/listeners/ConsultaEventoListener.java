@@ -4,6 +4,7 @@ import br.com.caixa.cobranca.consulta.services.ConsultaBoletoService;
 import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
 import br.com.caixa.cobranca.http.Correlacao;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.DeliveryMode;
@@ -49,6 +50,8 @@ public class ConsultaEventoListener {
             return;
         }
         try (var escopo = Correlacao.abrir(evento.correlationId())) {
+            Rastros.registrar(evento.identificadorBoleto(), "EVENTO_RECEBIDO",
+                    evento.tipo() + "; id_evento=" + evento.idEvento());
             LOGGER.info("Evento recebido. idEvento={}, correlation_id={}", evento.idEvento(), evento.correlationId());
             if (evento.tipo() != TipoEventoBoleto.EmissaoAceita) {
                 consulta.invalidar(evento.identificadorBoleto());

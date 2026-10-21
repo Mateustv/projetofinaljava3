@@ -18,6 +18,8 @@
 
 ## Organização dos pacotes Java
 
+**Apoio didático opcional:** o [painel web](painel-demonstracao.md), servido pela consulta no perfil `demonstracao`, encaminha emissões ao emissor local e agrega rastros em memória dos três serviços e browse limitado da quarentena. Não adiciona banco/serviço nem muda contratos de negócio; fica desativado na execução normal. As classes comuns de diagnóstico ficam em `infraestrutura-http/http/demo`, os controllers nos respectivos `controllers` e os recursos fora de `static`. O perfil também isola os H2 e permite escolher aprovação/rejeição/falha por prefixo sintético. Não é auditoria ou monitoramento de produção.
+
 Os três microsserviços usam **pacotes por tipo de classe**, sem mudar módulos, contratos HTTP/JMS ou transações. A classe de inicialização permanece no pacote raiz para o Spring descobrir os subpacotes. A configuração de eventos mantém a descoberta de entidades/repositórios dos produtores.
 
 | Pacote | Responsabilidade | Exemplo |

@@ -1,10 +1,12 @@
 # Guia didático do projeto — Central de Cobrança e Boletos
 
 **Para quem é:** integrantes que precisam entender o trabalho mesmo sem terem acompanhado sua construção.
-**Versão de referência:** implementação E0–E10, com pacotes organizados no commit `439e610`, em 20/10/2026.
+**Versão de referência:** implementação E0–E10, com pacotes organizados no commit `439e610` e laboratório didático local adicionado em 21/10/2026.
 **Objetivo:** explicar o que o sistema faz, como as partes se conectam e onde encontrar cada responsabilidade. Não é necessário decorar todas as classes.
 
-Este guia descreve código existente, não uma proposta de novas funcionalidades. A última regressão registrada tem **265 testes aprovados**, incluindo PACT. Isso não significa que os três integrantes já executaram a demonstração ou que a entrega final foi encerrada. O que falta está no [roteiro F1–F3](../ROTEIRO.md).
+Este guia descreve código existente, não uma proposta de novas funcionalidades. A regressão completa do painel tem **277 testes aprovados**, incluindo PACT. Isso não significa que os três integrantes já executaram a demonstração ou que a entrega final foi encerrada. O que falta está no [roteiro F1–F3](../ROTEIRO.md).
+
+**Para ver o fluxo funcionando:** siga o [laboratório web](painel-demonstracao.md). Ele executa os caminhos reais e mostra rastros das aplicações; não substitui a leitura nem cria requisitos extras.
 
 ## Índice e ordem de leitura
 
@@ -374,6 +376,19 @@ Validar formato/tamanho de CPF/CNPJ **não verifica dígitos verificadores nem c
 | [CorrelacaoFilter](../infraestrutura-http/src/main/java/br/com/caixa/cobranca/http/CorrelacaoFilter.java) | Valida/gera header, devolve-o nas respostas e registra logs mínimos da requisição |
 | [CorrelacaoConfiguration](../infraestrutura-http/src/main/java/br/com/caixa/cobranca/http/CorrelacaoConfiguration.java) | Registra o filtro com prioridade alta nos serviços |
 | [BrokerApplication](../cobranca-broker/src/main/java/br/com/caixa/cobranca/broker/BrokerApplication.java) | Cria topologia/persistência/redelivery, lê porta/diretório, inicia em loopback, confirma prontidão e para no encerramento |
+
+### 6.6 Laboratório didático opcional
+
+| Classe/recurso | O que faz |
+|---|---|
+| [Rastros](../infraestrutura-http/src/main/java/br/com/caixa/cobranca/http/demo/Rastros.java) | Guarda diagnóstico limitado a 2.000 rastros por JVM; commit só é registrado após confirmação da transação |
+| [DemonstracaoConfiguration](../infraestrutura-http/src/main/java/br/com/caixa/cobranca/http/demo/DemonstracaoConfiguration.java) | Ativa/desativa o diagnóstico no ciclo de vida do perfil `demonstracao` |
+| [RastrosController](../infraestrutura-http/src/main/java/br/com/caixa/cobranca/http/demo/RastrosController.java) | Disponibiliza a janela de rastros de um UUID no perfil |
+| [PainelDemonstracaoController](../boleto-consulta/src/main/java/br/com/caixa/cobranca/consulta/controllers/PainelDemonstracaoController.java) | Serve a página, encaminha emissão ao destino local fixo e agrega diagnósticos dos três serviços/quarentena |
+| [QuarentenaDemonstracaoController](../boleto-registro/src/main/java/br/com/caixa/cobranca/registro/controllers/QuarentenaDemonstracaoController.java) | Examina até 200 mensagens por browse, sem consumir ou reenviar |
+| [HTML](../boleto-consulta/src/main/resources/demonstracao/index.html), [JavaScript](../boleto-consulta/src/main/resources/demonstracao/painel.js) e [CSS](../boleto-consulta/src/main/resources/demonstracao/painel.css) | Formulário, cartões, linha do tempo e respostas HTTP; somente recursos locais, sem dependências de frontend |
+
+As chamadas de diagnóstico estão nas classes já catalogadas dos serviços e despachantes. Fora do perfil, não acumulam rastros nem mudam o cenário da registradora. Isso não é auditoria nem um quarto microsserviço; detalhes e comandos estão no [guia do painel](painel-demonstracao.md).
 
 ## 7. APIs, dados e configurações
 

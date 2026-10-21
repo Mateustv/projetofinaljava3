@@ -1,6 +1,7 @@
 package br.com.caixa.cobranca.eventos;
 
 import br.com.caixa.cobranca.contracts.EventoBoleto;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -49,6 +50,8 @@ public class EventoOutboxDispatcher {
                     message.setStringProperty("tipo", evento.tipo().name());
                     return message;
                 });
+                Rastros.registrar(evento.identificadorBoleto(), evento.correlationId(), "EVENTO_PUBLICADO",
+                        "Commit JMS: " + evento.tipo() + "; id_evento=" + evento.idEvento());
                 item.confirmar(agora());
                 LOGGER.info("Evento publicado. idEvento={}, identificador={}, tentativa={}, correlation_id={}",
                         item.getIdEvento(), item.getIdentificadorBoleto(), item.getTentativas(), evento.correlationId());
@@ -68,6 +71,9 @@ public class EventoOutboxDispatcher {
     }
 
     private void registrarFalha(EventoOutboxEntity item) {
+        Rastros.registrar(item.getIdentificadorBoleto(), null, "FALHA_PUBLICACAO_EVENTO",
+                "Tentativa " + item.getTentativas() + "; tipo=" + item.getUltimoErro()
+                        + "; isolado=" + (item.getFalhaDefinitivaEm() != null));
         LOGGER.warn("Falha ao publicar evento. idEvento={}, tentativa={}, tipo={}, isolado={}",
                 item.getIdEvento(), item.getTentativas(), item.getUltimoErro(),
                 item.getFalhaDefinitivaEm() != null);

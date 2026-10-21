@@ -6,6 +6,7 @@ import br.com.caixa.cobranca.emissor.exceptions.FalhaAoAceitarEmissaoException;
 import br.com.caixa.cobranca.emissor.models.EmissaoAceitaEntity;
 import br.com.caixa.cobranca.emissor.repositories.EmissaoAceitaRepository;
 import br.com.caixa.cobranca.emissor.validators.EmissaoValidator;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import br.com.caixa.cobranca.contracts.BoletoAceito;
 import br.com.caixa.cobranca.contracts.CampoInvalido;
 import br.com.caixa.cobranca.contracts.EmitirBoletoRequest;
@@ -124,8 +125,12 @@ public class EmissaoService {
 
     private BoletoAceito devolverOuConflitar(EmissaoAceitaEntity existente, String fingerprint) {
         if (!existente.getFingerprint().equals(fingerprint)) {
+            Rastros.registrar(existente.comoResposta().identificador(), "CONFLITO",
+                    "Mesma chave com conteudo diferente: HTTP 409, sem novo aceite.");
             throw new ChaveIdempotenciaConflitanteException();
         }
+        Rastros.registrar(existente.comoResposta().identificador(), "IDEMPOTENCIA",
+                "Mesmo conteudo: aceite original retornado, sem novo comando.");
         return existente.comoResposta();
     }
 

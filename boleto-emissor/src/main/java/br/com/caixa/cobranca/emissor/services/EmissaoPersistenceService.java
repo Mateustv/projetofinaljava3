@@ -12,6 +12,7 @@ import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
 import br.com.caixa.cobranca.eventos.EventoOutboxService;
 import br.com.caixa.cobranca.http.Correlacao;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -70,6 +71,8 @@ public class EmissaoPersistenceService {
 
         eventos.adicionar(new EventoBoleto(UUID.randomUUID(), TipoEventoBoleto.EmissaoAceita,
                 aceite.identificador(), request.convenio(), aceite.status(), recebimento, correlationId));
+        Rastros.aposCommit(aceite.identificador(), correlationId, "ACEITE_PERSISTIDO",
+                "Commit H2: aceite + comando outbox + intencao EmissaoAceita.");
         return aceite;
     }
 }

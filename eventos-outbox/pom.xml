@@ -13,6 +13,10 @@
     <dependencies>
         <dependency>
             <groupId>br.com.caixa.cobranca</groupId>
+            <artifactId>infraestrutura-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.com.caixa.cobranca</groupId>
             <artifactId>cobranca-broker</artifactId>
             <scope>test</scope>
         </dependency>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Central de Cobrança | Laboratório do fluxo</title>
+  <link rel="stylesheet" href="/demonstracao/painel.css">
+  <script src="/demonstracao/painel.js" defer></script>
+</head>
+<body>
+<header><div class="eyebrow">BE-JV-010 · LABORATÓRIO LOCAL</div>
+  <h1>O caminho de um boleto</h1>
+  <p>Envie uma solicitação e acompanhe evidências reais entre as aplicações.</p>
+  <span class="badge">Modo demonstração · dados sintéticos · sem pagamento</span>
+</header>
+<main>
+  <section class="notice">
+    <strong>Não é uma simulação visual de sucesso.</strong> Os cenários usam a registradora simulada existente,
+    mas HTTP, H2, outbox, Artemis e cache executam de verdade. Rastros são diagnósticos em memória,
+    não auditoria: últimos 2.000 por JVM, apagados ao reiniciar. Horários de máquinas diferentes podem divergir.
+  </section>
+  <section class="layout">
+    <section class="card controls" aria-labelledby="prepare">
+      <h2 id="prepare">1. Prepare o experimento</h2>
+      <label for="cenario">Cenário da próxima emissão</label>
+      <select id="cenario">
+        <option value="A">Aprovar registro</option>
+        <option value="R">Rejeitar por regra de negócio</option>
+        <option value="F">Falhar: retry e quarentena</option>
+      </select>
+      <p id="scenario-help" class="muted"></p>
+      <button id="novo" type="button" class="secondary">Gerar solicitação sintética</button>
+      <label for="pedido">Corpo do POST (editável)</label>
+      <textarea id="pedido" rows="14" spellcheck="false"></textarea>
+      <div class="buttons">
+        <button id="emitir" type="button">Emitir e acompanhar</button>
+        <button id="repetir" type="button" class="secondary" disabled>Repetir o mesmo pedido</button>
+        <button id="conflitar" type="button" class="secondary" disabled>Testar conflito 409</button>
+      </div>
+      <p class="muted">Repetição reutiliza exatamente o último pedido aceito. Conflito muda apenas o valor,
+        mantendo convênio e controle. Gerar outro pedido cria um controle novo; não apaga dados.</p>
+    </section>
+    <section class="card" aria-labelledby="observe">
+      <h2 id="observe">2. Observe o caminho real</h2>
+      <div id="flow" class="flow">
+        <article data-node="aceite"><span>01 · EMISSOR / H2</span><h3>Aceite + outboxes</h3><p>Sem evidência nesta janela.</p></article>
+        <article data-node="fila"><span>02 · ARTEMIS</span><h3>Comando na fila</h3><p>Sem evidência nesta janela.</p></article>
+        <article data-node="registro"><span>03 · REGISTRO / H2</span><h3>Consumo e resultado</h3><p>Sem evidência nesta janela.</p></article>
+        <article data-node="evento"><span>04 · PUB/SUB</span><h3>Evento de domínio</h3><p>Sem evidência nesta janela.</p></article>
+        <article data-node="cache"><span>05 · CONSULTA</span><h3>Cache e invalidação</h3><p>Sem evidência nesta janela.</p></article>
+        <article data-node="quarentena"><span>EXCEÇÃO · ARTEMIS</span><h3>Quarentena</h3><p>Ainda não consultada.</p></article>
+      </div>
+      <dl class="identity"><dt>UUID acompanhado</dt><dd id="uuid">Nenhum</dd>
+        <dt>Estado observado na API</dt><dd id="estado">Nenhum</dd>
+        <dt>Correlação do último HTTP</dt><dd id="correlacao">Nenhuma</dd></dl>
+      <div class="buttons">
+        <button id="consultar" type="button" disabled>Consultar (ver cache)</button>
+        <button id="atualizar" type="button" class="secondary" disabled>Atualizar evidências</button>
+        <button id="parar" type="button" class="secondary" disabled>Pausar acompanhamento</button>
+      </div>
+      <p class="muted">Acompanhamento consulta a API e os rastros, sem consumir a fila.
+        Pausa automática após 45 s. Se terminar o registro, você ainda pode consultar para observar CACHE_HIT.
+        A transição pode ser rápida demais para capturar um estado aguardando.</p>
+      <p id="status" role="status" aria-live="polite">Pronto para começar.</p>
+      <ul id="fontes" class="source-list"></ul>
+    </section>
+  </section>
+  <section class="layout lower">
+    <section class="card"><h2>3. Linha do tempo observada</h2>
+      <p class="muted">Ordenada por horário informado pelos serviços. Publicação e consumo podem se sobrepor.
+        “Processamento concluído” não comprova o ack JMS posterior. Ausência de rastro não comprova ausência de execução.</p>
+      <ol id="timeline" class="timeline"><li>Nenhum boleto selecionado.</li></ol>
+    </section>
+    <section class="card"><h2>HTTP sem esconder o resultado</h2>
+      <p class="muted">202 = aceito, não registrado. Rejeição é estado de negócio; 503 é falha técnica.
+        Estas são as últimas 30 respostas desta página.</p>
+      <div id="responses"></div>
+      <details><summary>Como explorar cache e falhas?</summary>
+        <p>Emita e depois consulte novamente: procure CACHE_MISS, CACHE_PREENCHIDO e CACHE_HIT.
+          Eventos finais geram EVENTO_RECEBIDO e CACHE_INVALIDADO. Não forçamos atrasos para fabricar essa ordem.</p>
+        <p>No cenário de falha, procure entregas 1, 2 e 3; a quarentena só fica confirmada
+          quando uma mensagem com este UUID é observada no broker. O boleto pode continuar aguardando.
+          O cenário não testa o circuit breaker HTTP; para isso, pare manualmente a fonte de registro
+          e consulte um UUID novo, fora do cache. Três falhas técnicas podem abrir o circuito.</p>
+        <p>O painel não para serviços, não reprocessa a DLQ e não muda resultados já gravados.</p>
+      </details>
+    </section>
+  </section>
+</main>
+<footer>Central de Cobrança e Boletos · Instrumentação didática opcional, não um requisito adicional da avaliação.</footer>
+</body>
+</html>

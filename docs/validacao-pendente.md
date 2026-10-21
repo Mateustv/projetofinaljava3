@@ -2,7 +2,30 @@
 
 > Os comandos abaixo foram executados na raiz de `projeto-final-grupo`. Os passos já validados estão marcados `[x]`.
 
-> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Esta reorganização é somente documental, com links/whitespace conferidos, sem nova execução funcional. A última revalidação permanece o build limpo com 265 testes aprovado na revisão `b11fad9`; F1–F3 ainda não concluídas.
+> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Aquela reorganização foi somente documental, com links/whitespace conferidos; sua evidência era o build limpo com 265 testes da revisão `b11fad9`. Revalidações posteriores estão abaixo; F1–F3 ainda não concluídas.
+
+## Painel web didático — 21/10/2026
+
+Recurso opcional solicitado pelo grupo para enxergar os fluxos, não novo critério. Comandos, interpretação e limites: [laboratório web](painel-demonstracao.md).
+
+- [x] `mvn -B clean verify`: **BUILD SUCCESS, 277 testes**, zero falhas/erros/ignorados, incluindo PACT. São os 265 anteriores mais 12 verificações de rastros, perfil, proxy HTTP, cenários e quarentena.
+- [x] Rastros desativados não acumulam dados; janela máxima de 2.000 por JVM; filtro por UUID; callback só afirma commit depois dele, nunca após rollback.
+- [x] Recursos/endpoints ausentes no perfil normal; página/JS/CSS e diagnóstico disponíveis no perfil `demonstracao`.
+- [x] Proxy preserva status/corpo/correlação de `202`, `409`, `400` e `503`; falha de transporte retorna `503` explícito; destinos não locais são recusados; erros de fontes não são tratados como janelas vazias bem-sucedidas.
+- [x] Prefixos de rejeição/falha só mudam cenário no modo de demonstração; aprovação explícita não depende do cenário padrão.
+- [x] Browse em broker real confirma mensagem sem consumir, repetindo a observação; limite de 200 mensagens é informado.
+- [x] `node --check` do JavaScript e conferência de links locais/catálogo dos **86 arquivos Java de produção**.
+- [x] Broker e três JARs reais, com perfil `demonstracao`, journal e H2 temporários isolados. Portas 61617 e 18181/18182/18183; os três healths responderam `UP`.
+- [x] Navegador: aprovação `202` → `REGISTRADO`; UUID `7148f900-1289-4e63-a765-b3a5bfbcde77`. Rastros reais de commit, publicação, consumo, evento e cache. A primeira consulta preencheu `AGUARDANDO_REGISTRO`; após evento/invalidação houve preenchimento `REGISTRADO` e hits posteriores.
+- [x] Repetição retornou mesmo UUID; conflito retornou `409`. Diagnóstico confirmou **um aceite, um comando publicado e um resultado persistido**, com rastros de idempotência/conflito.
+- [x] Navegador: rejeição `REJEITADO`, código `SIM-REJ-001`, sem mensagem na quarentena; UUID `5305bf89-b793-405e-aaaf-0f96d2315a15`.
+- [x] Navegador: falha com entregas **1, 2 e 3**, três falhas e mensagem do UUID `62ccaf93-0758-46c7-922d-356906891e70` observada na quarentena; estado continuou `AGUARDANDO_REGISTRO`.
+- [x] Navegador: JSON malformado informado antes do envio e convênio inválido retornou `400`.
+- [x] Segunda execução real, deliberadamente sem JVM de registro: emissão aceita, consulta `503`, três falhas HTTP e `CIRCUITO_ABERTO`; **nenhum fallback indevido**, diagnóstico explicitamente indisponível. UUID `12f70f4c-38b0-4b50-acd9-4d24ea616210`.
+- [x] Layout conferido em desktop e viewport 390 × 844; sem overflow horizontal. Acompanhamento pausado pelos controles.
+- [x] JVMs de validação encerradas, sem processos de demonstração deixados ativos. Não foram usados/apagados bancos existentes do grupo.
+
+Execução feita pelo assistente com dados sintéticos: não atribuir validação humana aos integrantes. Não mede carga, p95, capacidade produtiva, segurança ou auditoria; não encerra F1–F3.
 
 ## Organização dos pacotes antes da F1 — 20/10/2026
 
@@ -11,7 +34,7 @@
 - [x] Imports e links para arquivos movidos atualizados. O construtor com `Clock` do dispatcher e os auxiliares de configuração HTTP/cache usados de outros pacotes passaram a públicos, sem alterar lógica ou configuração Spring.
 - [x] `mvn -B clean verify`: **BUILD SUCCESS, 265 testes**, zero falhas/erros/ignorados (19 infraestrutura-http, 12 broker, 17 eventos-outbox, 97 emissor, 69 registro, 50 consulta Surefire + 1 Failsafe); PACT consumidor/provedor e comparação canônica preservados.
 
-Essa é a revalidação funcional mais recente, posterior à revisão documental citada acima. Não é nova execução de quatro JARs, carga ou conclusão da F1. Não foram alterados endpoints, DTOs compartilhados, nomes de tabelas/destinos, orçamentos de retry nem fronteiras transacionais.
+Essa foi a revalidação funcional da reorganização, posterior à revisão documental citada acima. Naquela mudança não houve nova execução de quatro JARs, carga ou conclusão da F1. Não foram alterados endpoints, DTOs compartilhados, nomes de tabelas/destinos, orçamentos de retry nem fronteiras transacionais.
 
 ## Validação da E0
 

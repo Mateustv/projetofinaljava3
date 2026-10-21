@@ -1,0 +1,303 @@
+:root {
+  color-scheme: light;
+  --ink: #172e40;
+  --muted: #516779;
+  --line: #cbd9e1;
+  --blue: #164e83;
+  --green: #146854;
+  --surface: #fff
+}
+
+* {
+  box-sizing: border-box
+}
+
+body {
+  margin: 0;
+  background: #edf2f6;
+  color: var(--ink);
+  font: 16px/1.55 system-ui,sans-serif
+}
+
+header {
+  padding: 36px max(24px,calc((100vw - 1440px)/2));
+  background: #102e47;
+  color: white
+}
+
+h1 {
+  font-size: clamp(2rem,4vw,3.2rem);
+  line-height: 1.15;
+  margin: 8px 0 14px
+}
+
+header p {
+  color: #d9e8f2
+}
+
+.eyebrow {
+  font-size: .8rem;
+  letter-spacing: .16em;
+  font-weight: 700
+}
+
+.badge {
+  display: inline-block;
+  border: 1px solid #83b1ce;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: .85rem
+}
+
+main {
+  max-width: 1488px;
+  margin: auto;
+  padding: 24px
+}
+
+.notice {
+  background: #fff8df;
+  border-left: 5px solid #ab7408;
+  padding: 16px 20px;
+  margin-bottom: 24px
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(310px,.8fr) minmax(0,1.5fr);
+  gap: 24px
+}
+
+.lower {
+  grid-template-columns: 1.15fr 1fr;
+  margin-top: 24px
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+  min-width: 0;
+  box-shadow: 0 4px 15px #16394d06
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 0 0 20px
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 7px 0
+}
+
+label {
+  display: block;
+  font-weight: 650;
+  margin: 16px 0 6px
+}
+
+select,textarea {
+  width: 100%;
+  border: 1px solid #91a7b7;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 10px;
+  font: inherit
+}
+
+textarea {
+  font: 13px/1.5 ui-monospace,monospace;
+  resize: vertical
+}
+
+.muted {
+  color: var(--muted);
+  font-size: .88rem
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 16px 0
+}
+
+button {
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font: 600 .88rem system-ui;
+  cursor: pointer
+}
+
+button.secondary {
+  background: #f1f6fa;
+  color: var(--blue)
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: not-allowed
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(.9)
+}
+
+:focus-visible {
+  outline: 3px solid #dc9600;
+  outline-offset: 3px
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px
+}
+
+.flow article {
+  border: 1px solid var(--line);
+  border-top: 4px solid #a7b8c4;
+  border-radius: 7px;
+  padding: 12px;
+  background: #f7f9fb
+}
+
+.flow article span {
+  font-size: .7rem;
+  font-weight: 750;
+  color: var(--muted)
+}
+
+.flow article p {
+  font-size: .8rem;
+  margin: 0;
+  overflow-wrap: anywhere
+}
+
+.flow article.observed {
+  border-top-color: var(--green);
+  background: #eff9f5
+}
+
+.flow article.warning {
+  border-top-color: #b45412;
+  background: #fff5e9
+}
+
+.identity {
+  margin-top: 24px;
+  font-size: .88rem
+}
+
+.identity dt {
+  font-weight: 700;
+  margin-top: 9px
+}
+
+.identity dd {
+  margin: 0;
+  font-family: ui-monospace,monospace;
+  overflow-wrap: anywhere
+}
+
+#status {
+  padding: 10px;
+  background: #edf4fa;
+  border-radius: 6px
+}
+
+.source-list {
+  font-size: .82rem;
+  padding-left: 20px
+}
+
+.timeline {
+  padding-left: 24px;
+  max-height: 650px;
+  overflow: auto
+}
+
+.timeline li {
+  padding: 0 8px 16px;
+  border-bottom: 1px solid #e2e9ef;
+  margin-bottom: 12px
+}
+
+.timeline time {
+  font-size: .75rem;
+  color: var(--muted)
+}
+
+.timeline strong {
+  display: block;
+  font-size: .88rem
+}
+
+.timeline p {
+  font-size: .85rem;
+  margin: 4px 0;
+  overflow-wrap: anywhere
+}
+
+.timeline small {
+  font-size: .7rem;
+  color: var(--muted);
+  overflow-wrap: anywhere
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+  background: #f2f5f8;
+  padding: 12px;
+  border-radius: 5px
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600
+}
+
+details {
+  margin: 14px 0;
+  border-top: 1px solid var(--line);
+  padding-top: 12px
+}
+
+footer {
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+  font-size: .82rem
+}
+
+@media(max-width:1000px) {
+  .layout,.lower {
+    grid-template-columns: 1fr
+  }
+  .flow {
+    grid-template-columns: repeat(2,minmax(0,1fr))
+  }
+}
+
+@media(max-width:480px) {
+  main {
+    padding: 12px
+  }
+  .card {
+    padding: 16px
+  }
+  .flow {
+    grid-template-columns: 1fr
+  }
+  header {
+    padding: 28px 20px
+  }
+}

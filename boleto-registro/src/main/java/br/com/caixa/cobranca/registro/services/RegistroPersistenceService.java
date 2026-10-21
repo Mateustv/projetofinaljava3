@@ -10,6 +10,7 @@ import br.com.caixa.cobranca.contracts.EventoBoleto;
 import br.com.caixa.cobranca.contracts.TipoEventoBoleto;
 import br.com.caixa.cobranca.contracts.StatusBoleto;
 import br.com.caixa.cobranca.eventos.EventoOutboxService;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,8 @@ public class RegistroPersistenceService {
                             ? TipoEventoBoleto.BoletoRegistrado : TipoEventoBoleto.RegistroRejeitado,
                     comando.identificador(), comando.solicitacao().convenio(), resultado.status(),
                     LocalDateTime.now().truncatedTo(ChronoUnit.MICROS), comando.correlationId()));
+            Rastros.aposCommit(comando.identificador(), comando.correlationId(), "RESULTADO_PERSISTIDO",
+                    "Commit H2: " + resultado.status() + " + historico + evento outbox.");
             return entidade;
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             throw new FalhaAoRegistrarBoletoException(ex);

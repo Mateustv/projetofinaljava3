@@ -5,6 +5,8 @@ import br.com.caixa.cobranca.registro.exceptions.ComandoRegistroInvalidoExceptio
 import br.com.caixa.cobranca.registro.services.RegistroBoletoService;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
 import br.com.caixa.cobranca.http.Correlacao;
+import br.com.caixa.cobranca.http.demo.Rastros;
+import br.com.caixa.cobranca.registro.exceptions.FalhaAoRegistrarBoletoException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.DeliveryMode;
@@ -51,9 +53,23 @@ public class RegistroCommandListener {
                 throw new ComandoRegistroInvalidoException();
             }
             try (var escopo = Correlacao.abrir(comando.correlationId())) {
+                int entrega = message.getIntProperty("JMSXDeliveryCount");
+                Rastros.registrar(comando.identificador(), "COMANDO_RECEBIDO",
+                        "Entrega real do Artemis: " + entrega);
                 LOGGER.info("Comando recebido. identificador={}, correlation_id={}",
                         comando.identificador(), comando.correlationId());
-                var resultado = service.registrar(comando);
+                RegistroBoletoService.ResultadoRegistro resultado;
+                try {
+                    resultado = service.registrar(comando);
+                } catch (FalhaAoRegistrarBoletoException ex) {
+                    Rastros.registrar(comando.identificador(), "FALHA_PROCESSAMENTO",
+                            "Falha na entrega " + entrega + "; " + ex.getClass().getSimpleName()
+                                    + " relancada para rollback JMS. Broker decide redelivery/quarentena.");
+                    throw ex;
+                }
+                Rastros.registrar(comando.identificador(), "PROCESSAMENTO_CONCLUIDO",
+                        "Dominio retornou; duplicado=" + resultado.duplicado()
+                                + ". Ack JMS sera tentado pelo container apos retorno do listener.");
                 LOGGER.info("Comando processado. identificador={}, status={}, duplicado={}, entrega={}, correlation_id={}",
                         resultado.boleto().identificador(), resultado.boleto().status(),
                         resultado.duplicado(), message.getIntProperty("JMSXDeliveryCount"), comando.correlationId());

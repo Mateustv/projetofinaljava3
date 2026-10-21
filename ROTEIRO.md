@@ -2,7 +2,7 @@
 
 Atualizado em **20/10/2026**, após o usuário informar a orientação do professor: **seguir apenas os critérios de avaliação**. A referência de entrega é o [brief](brief-alunos.md), com seus nove critérios, não a implementação integral das sessões do tema ou do exemplo PIX.
 
-**A implementação técnica necessária já tem evidência. Não há nova funcionalidade planejada.** Falta concluir a comprovação da versão final, a autoavaliação e a preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
+**A implementação técnica necessária já tem evidência. Não há nova funcionalidade obrigatória planejada.** Falta concluir a comprovação da versão final, a autoavaliação e a preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
 
 ## 1. Base pronta — não refazer
 
@@ -12,11 +12,13 @@ Atualizado em **20/10/2026**, após o usuário informar a orientação do profes
 - Retry/backoff, quarentena/DLQ, timeout e circuit breaker.
 - Contrato PACT executável entre consulta e registro.
 - ADRs, diagrama e instruções de execução em **perfil B/JVM, sem Docker**.
-- Última revalidação em 20/10/2026: `mvn -B clean verify`, **265 testes aprovados**, zero falhas/erros/ignorados, incluindo PACT.
+- Última revalidação em 21/10/2026, após o painel didático: `mvn -B clean verify`, **277 testes aprovados**, zero falhas/erros/ignorados, incluindo PACT.
 
 Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui a demonstração dos quatro processos. Nenhuma implementação ou teste existente será removido por ultrapassar o mínimo.
 
 **Organização antes da F1:** classes dos três serviços separadas em pacotes por tipo (`controllers`, `services`, `models`, `repositories` e demais tipos utilizados), com imports/testes/links atualizados. Regressão completa após a mudança: **265 testes aprovados**, incluindo PACT. Guia: [organização dos pacotes](docs/arquitetura.md#organização-dos-pacotes-java). Essa refatoração não conclui F1–F3 nem acrescenta funcionalidades.
+
+**Apoio solicitado depois:** o [laboratório web do fluxo real](docs/painel-demonstracao.md) ajuda a estudar/demonstrar os caminhos existentes. A validação automatizada e em quatro JVMs está [registrada](docs/validacao-pendente.md#painel-web-didático--21102026), mas não equivale à execução pessoal/ensaio dos integrantes. Não cria novo critério nem marca F1–F3 como concluídas.
 
 ## 2. O que falta — três etapas finais
 
@@ -31,7 +33,7 @@ Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui 
 - [ ] Selecionar as evidências existentes de rejeição de negócio, retry/quarentena e timeout/breaker, distinguindo erro técnico de ausência (`503` × `404`). Não é necessário repetir manualmente toda a suíte.
 - [ ] Registrar comandos, resultados observados e limites da demonstração; corrigir apenas defeitos que bloqueiem os critérios ou a execução.
 
-**Pronto quando:** a versão atual roda conforme as instruções e há uma sequência curta e reproduzível de demonstração. Não criar ferramenta nova, endpoint administrativo ou infraestrutura para essa etapa.
+**Pronto quando:** a versão atual roda conforme as instruções e há uma sequência curta e reproduzível de demonstração. Não exige criar ferramenta nova, endpoint administrativo ou infraestrutura; o painel já solicitado é apoio opcional, não outro portão.
 
 O build limpo já foi revalidado nesta data. Reexecutar antes da entrega se houver alteração de código, dependências ou contratos; não abrir uma nova campanha de testes apenas pela mudança documental do roteiro.
 
@@ -66,7 +68,7 @@ Não desenvolver nem usar como bloqueio de fechamento:
 - E11: autenticação/autorização por convênio, TLS, auditoria persistida e criptografia gerenciada.
 - E12: etapa separada de operação, cópia/restauração completa, retenção e replay administrativo/auditado. Início/parada e preservação básica já documentados permanecem na F1.
 - Ensaios de p95 < 100 ms, 500 emissões/s e proporção 20:1. São premissas do tema **não medidas**, não capacidades demonstradas.
-- Kafka, SAGA adicional, segundo par PACT, notificação real, dashboards ou opcionais adicionais. O grupo tem três integrantes.
+- Kafka, SAGA adicional, segundo par PACT, notificação real, dashboards operacionais ou opcionais adicionais. O laboratório didático solicitado não é monitoramento de produção. O grupo tem três integrantes.
 
 Os nove critérios gerais, inclusive resiliência e uso crítico de IA, **continuam válidos**. A orientação docente foi informada pelo usuário; não é aprovação prévia da nota nem prova de implementação dos controles excluídos. O sistema continua demonstrador local, em loopback e com dados sintéticos.
 

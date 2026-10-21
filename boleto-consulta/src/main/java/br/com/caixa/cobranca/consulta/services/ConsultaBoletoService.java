@@ -4,6 +4,7 @@ import br.com.caixa.cobranca.consulta.clients.BoletoFonteClient;
 import br.com.caixa.cobranca.consulta.configs.ConsultaCacheConfiguration;
 import br.com.caixa.cobranca.consulta.exceptions.BoletoNaoEncontradoException;
 import br.com.caixa.cobranca.contracts.BoletoConsulta;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -37,10 +38,13 @@ public class ConsultaBoletoService {
         synchronized (trava(identificador)) {
             var existente = cache.get(identificador, BoletoConsulta.class);
             if (existente != null) {
+                Rastros.registrar(identificador, "CACHE_HIT", "Resposta em memoria: " + existente.status());
                 return existente;
             }
+            Rastros.registrar(identificador, "CACHE_MISS", "Sem entrada; consultar fontes HTTP.");
             var boleto = buscar(identificador);
             cache.put(identificador, boleto);
+            Rastros.registrar(identificador, "CACHE_PREENCHIDO", "Entrada instalada: " + boleto.status());
             return boleto;
         }
     }
@@ -48,6 +52,7 @@ public class ConsultaBoletoService {
     public void invalidar(UUID identificador) {
         synchronized (trava(identificador)) {
             cache.evict(identificador);
+            Rastros.registrar(identificador, "CACHE_INVALIDADO", "Eviccao coordenada concluida.");
         }
     }
 
@@ -59,6 +64,7 @@ public class ConsultaBoletoService {
         try {
             return normalizar(registro.buscar(identificador), identificador, "registro");
         } catch (BoletoNaoEncontradoException registroAindaNaoConhece) {
+            Rastros.registrar(identificador, "FALLBACK", "Registro retornou 404; buscar aceite no emissor.");
             return normalizar(emissor.buscar(identificador), identificador, "emissor");
         }
     }

@@ -4,6 +4,7 @@ import br.com.caixa.cobranca.consulta.exceptions.BoletoNaoEncontradoException;
 import br.com.caixa.cobranca.consulta.exceptions.FalhaFonteBoletoException;
 import br.com.caixa.cobranca.contracts.BoletoConsulta;
 import br.com.caixa.cobranca.http.Correlacao;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -53,6 +54,7 @@ public class RestBoletoFonteClient implements BoletoFonteClient {
         try {
             return circuitBreaker.executeSupplier(() -> buscarRemoto(identificador));
         } catch (CallNotPermittedException ex) {
+            Rastros.registrar(identificador, "CIRCUITO_ABERTO", "Fonte=" + fonte + "; chamada nao enviada.");
             LOGGER.warn("Consulta bloqueada pelo circuito. fonte={}, correlation_id={}",
                     fonte, Correlacao.atualOu(null));
             throw new FalhaFonteBoletoException(fonte, ex);
@@ -60,6 +62,7 @@ public class RestBoletoFonteClient implements BoletoFonteClient {
     }
 
     private BoletoConsulta buscarRemoto(UUID identificador) {
+        Rastros.registrar(identificador, "HTTP_FONTE", "GET interno para " + fonte);
         try {
             BoletoConsulta boleto = restClient.get()
                     .uri(baseUrl + "/interno/boletos/{identificador}", identificador)
@@ -70,13 +73,16 @@ public class RestBoletoFonteClient implements BoletoFonteClient {
                     })
                     .body(BoletoConsulta.class);
             BoletoFonteClient.validarResposta(boleto, identificador, fonte);
+            Rastros.registrar(identificador, "HTTP_FONTE_OK", fonte + ": HTTP 200; " + boleto.status());
             return boleto;
         } catch (RestClientResponseException ex) {
+            Rastros.registrar(identificador, "HTTP_FONTE_STATUS", fonte + ": HTTP " + ex.getStatusCode().value());
             if (ex.getStatusCode().value() == 404) {
                 throw new BoletoNaoEncontradoException();
             }
             throw new FalhaFonteBoletoException(fonte, ex);
         } catch (RestClientException ex) {
+            Rastros.registrar(identificador, "HTTP_FONTE_FALHOU", fonte + ": " + ex.getClass().getSimpleName());
             throw new FalhaFonteBoletoException(fonte, ex);
         }
     }

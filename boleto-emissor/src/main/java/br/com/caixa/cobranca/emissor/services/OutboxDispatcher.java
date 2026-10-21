@@ -4,6 +4,7 @@ import br.com.caixa.cobranca.emissor.models.ComandoRegistroOutboxEntity;
 import br.com.caixa.cobranca.emissor.publishers.RegistroCommandPublisher;
 import br.com.caixa.cobranca.emissor.repositories.ComandoRegistroOutboxRepository;
 import br.com.caixa.cobranca.contracts.RegistrarBoletoCommand;
+import br.com.caixa.cobranca.http.demo.Rastros;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -72,6 +73,8 @@ public class OutboxDispatcher {
                     continue;
                 }
                 publisher.publicar(comando);
+                Rastros.registrar(comando.identificador(), comando.correlationId(), "COMANDO_PUBLICADO",
+                        "Commit JMS confirmado pelo Artemis; nao significa registro concluido.");
                 outbox.registrarEntrega(agora());
                 repository.save(outbox);
                 LOGGER.info("Publicacao confirmada. identificador={}, tentativa={}, correlation_id={}",
@@ -105,6 +108,9 @@ public class OutboxDispatcher {
     }
 
     private void registrarFalha(ComandoRegistroOutboxEntity outbox) {
+        Rastros.registrar(outbox.getIdentificador(), null, "FALHA_PUBLICACAO_COMANDO",
+                "Tentativa " + outbox.getTentativas() + "; tipo=" + outbox.getUltimoErro()
+                        + "; isolado=" + (outbox.getFalhaDefinitivaEm() != null));
         LOGGER.warn("Falha na entrega. identificador={}, tentativa={}, tipo={}, isolada={}, proximaTentativa={}",
                 outbox.getIdentificador(), outbox.getTentativas(), outbox.getUltimoErro(),
                 outbox.getFalhaDefinitivaEm() != null, outbox.getProximaTentativaEm());
