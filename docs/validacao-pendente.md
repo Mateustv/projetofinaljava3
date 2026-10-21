@@ -2,7 +2,20 @@
 
 > Os comandos abaixo foram executados na raiz de `projeto-final-grupo`. Os passos já validados estão marcados `[x]`.
 
-> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Aquela reorganização foi somente documental, com links/whitespace conferidos; sua evidência era o build limpo com 265 testes da revisão `b11fad9`. Revalidações posteriores estão abaixo; F1–F3 ainda não concluídas.
+> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Aquela reorganização foi somente documental, com links/whitespace conferidos; sua evidência era o build limpo com 265 testes da revisão `b11fad9`. Revalidações posteriores estão abaixo; **F1 concluída em 21/10/2026, F2/F3 pendentes**.
+
+## F1 — Demonstração final — 21/10/2026
+
+- [x] Quatro JARs da versão `96b8075`, sem Docker, em portas HTTP 8081/8082/8083 e broker 61617, com bancos/journal temporários próprios. Healths `UP`.
+- [x] Navegador: emissão `202` → `REGISTRADO`, repetição com mesmo UUID, conflito `409` e confirmação de um único aceite/comando/resultado.
+- [x] Cache preenchido com transitório, evento/invalidação, novo preenchimento final e hit; rejeição de negócio sem DLQ; falha com três entregas e quarentena observada duas vezes sem consumo.
+- [x] `404` para ausência real com fallback permitido; `503`/circuito aberto quando registro indisponível, sem fallback técnico.
+- [x] Registro reiniciado com o mesmo banco: comando pendente processado e consulta voltou a `REGISTRADO`; resultado anterior também preservado após reinício.
+- [x] **48 testes selecionados**, zero falhas/erros/ignorados: controller/cache (12), eventos/corrida (14), resiliência HTTP (22). Build completo anterior de 277 testes preservado; código não mudou na F1.
+- [x] Sequência de 6–8 minutos, comandos e limitações registrados no [relatório F1](etapas/F1-demonstracao-final.md).
+- [x] Processos próprios encerrados pela sessão de execução e portas liberadas. Ctrl+C em consoles ocultas não funcionou neste ambiente; encerramento automatizado não é apresentado como teste de shutdown gracioso. A parada interativa recomendada continua documentada no README.
+
+A F1 conclui a conferência técnica pelo assistente, não a autoavaliação, ensaio pessoal ou entrega. F2/F3 permanecem abertas. Evidências/UUIDs completos, recuperação e condições de encerramento estão no relatório.
 
 ## Painel web didático — 21/10/2026
 

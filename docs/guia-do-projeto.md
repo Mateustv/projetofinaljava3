@@ -591,7 +591,7 @@ A orientação docente de seguir apenas a rubrica foi informada pelo usuário e 
 
 Conforme o [roteiro](../ROTEIRO.md):
 
-- **F1:** conferir a demonstração da versão atual e selecionar evidências existentes.
+- **F1 concluída em 21/10/2026:** conferência técnica pelo assistente e [sequência de demonstração](etapas/F1-demonstracao-final.md), sem atribuir ensaio pessoal aos integrantes. Restam F2/F3.
 - **F2:** preencher integrantes/papéis, níveis por critério e relato de uso de IA/validações pessoais.
 - **F3:** preparar defesa, conferir acesso ao material de entrega e fechar por último.
 

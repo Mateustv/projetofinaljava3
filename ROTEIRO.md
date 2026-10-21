@@ -2,7 +2,9 @@
 
 Atualizado em **20/10/2026**, após o usuário informar a orientação do professor: **seguir apenas os critérios de avaliação**. A referência de entrega é o [brief](brief-alunos.md), com seus nove critérios, não a implementação integral das sessões do tema ou do exemplo PIX.
 
-**A implementação técnica necessária já tem evidência. Não há nova funcionalidade obrigatória planejada.** Falta concluir a comprovação da versão final, a autoavaliação e a preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
+**Progresso em 21/10/2026:** F1 concluída pelo assistente, com execução real e [sequência de demonstração registrada](docs/etapas/F1-demonstracao-final.md). Restam **F2 e F3**; não foi atribuído ensaio ou validação pessoal aos integrantes.
+
+**A implementação técnica necessária já tem evidência. Não há nova funcionalidade obrigatória planejada.** A conferência técnica da demonstração foi concluída na F1; faltam autoavaliação/documentos e preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
 
 ## 1. Base pronta — não refazer
 
@@ -20,22 +22,24 @@ Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui 
 
 **Apoio solicitado depois:** o [laboratório web do fluxo real](docs/painel-demonstracao.md) ajuda a estudar/demonstrar os caminhos existentes. A validação automatizada e em quatro JVMs está [registrada](docs/validacao-pendente.md#painel-web-didático--21102026), mas não equivale à execução pessoal/ensaio dos integrantes. Não cria novo critério nem marca F1–F3 como concluídas.
 
-## 2. O que falta — três etapas finais
+## 2. Etapas finais — F1 concluída; faltam F2 e F3
 
-### F1 — Conferir a demonstração da versão final
+### F1 — Conferir a demonstração da versão final — concluída em 21/10/2026
 
 **Objetivo:** completar a evidência do critério 9 e selecionar o que mostrar na banca, reaproveitando testes e instruções existentes.
 
-- [ ] Seguir o [README](README.md): iniciar broker e três serviços, confirmar prontidão e encerrar corretamente, sem Docker.
-- [ ] Demonstrar emissão aceita (`202`), registro e consulta do estado final com dados sintéticos.
-- [ ] Demonstrar repetição sem duplicação e conflito de conteúdo (`409`).
-- [ ] Conferir consulta/cache e invalidação na transição; usar os testes existentes para evidenciar TTL e a corrida cache/evento, sem ensaio de carga.
-- [ ] Selecionar as evidências existentes de rejeição de negócio, retry/quarentena e timeout/breaker, distinguindo erro técnico de ausência (`503` × `404`). Não é necessário repetir manualmente toda a suíte.
-- [ ] Registrar comandos, resultados observados e limites da demonstração; corrigir apenas defeitos que bloqueiem os critérios ou a execução.
+- [x] Seguir o [README](README.md): iniciar broker e três serviços, confirmar prontidão e encerrar os processos próprios, sem Docker; isolamento dos dados e limites da parada automatizada registrados na F1.
+- [x] Demonstrar emissão aceita (`202`), registro e consulta do estado final com dados sintéticos.
+- [x] Demonstrar repetição sem duplicação e conflito de conteúdo (`409`).
+- [x] Conferir consulta/cache e invalidação na transição; usar os testes existentes para evidenciar TTL e a corrida cache/evento, sem ensaio de carga.
+- [x] Selecionar as evidências existentes de rejeição de negócio, retry/quarentena e timeout/breaker, distinguindo erro técnico de ausência (`503` × `404`). Não é necessário repetir manualmente toda a suíte.
+- [x] Registrar comandos, resultados observados e limites da demonstração; nenhum defeito funcional bloqueante exigiu correção.
+
+**Resultado:** quatro JARs reais, cenários no navegador e **48 testes selecionados aprovados** sobre a base de 277 do build completo. Evidências, UUIDs e sequência de 6–8 minutos: [relatório F1](docs/etapas/F1-demonstracao-final.md). Isso conclui a conferência técnica, não o ensaio dos integrantes nem F2/F3.
 
 **Pronto quando:** a versão atual roda conforme as instruções e há uma sequência curta e reproduzível de demonstração. Não exige criar ferramenta nova, endpoint administrativo ou infraestrutura; o painel já solicitado é apoio opcional, não outro portão.
 
-O build limpo já foi revalidado nesta data. Reexecutar antes da entrega se houver alteração de código, dependências ou contratos; não abrir uma nova campanha de testes apenas pela mudança documental do roteiro.
+O build limpo de 277 testes foi validado na entrega do painel em 21/10/2026; a F1 reexecutou somente as evidências selecionadas, sem alterar código. Reexecutar o build antes da entrega se houver alteração de código, dependências ou contratos; não abrir nova campanha apenas pela documentação.
 
 ### F2 — Finalizar os documentos obrigatórios e a autoavaliação
 
