@@ -1,50 +1,47 @@
-# ADR-008 — Retry e isolamento de falhas na outbox HTTP
+# ADR-008 — Resiliência de Mensageria: Retentativas com Backoff, Contenção de Poison Pills e Quarentena (DLQ)
 
 ## Contexto
 
-Na E4, comandos pendentes eram reenviados indefinidamente. Uma falha permanente ou uma indisponibilidade prolongada poderia ocupar os primeiros itens do lote e prejudicar comandos novos. O grupo aprovou continuar sem RabbitMQ/Docker, implementando resiliência sobre a outbox HTTP.
+Em sistemas distribuídos bancários de alta criticidade, falhas operacionais e de rede são inevitáveis. No entanto, essas falhas possuem naturezas fundamentalmente distintas, que exigem tratamentos arquiteturais específicos:
+
+1. **Falhas Transitórias de Infraestrutura:** Oscilações passageiras de conexões de socket, timeouts pontuais na câmara registradora externa ou concorrência momentânea de banco de dados. Essas falhas são auto-resolvíveis se o sistema aguardar um intervalo de recuperação.
+2. **Falhas Permanentes e Mensagens Venenosas (*Poison Pills*):** Payloads com JSON truncado/corrompido, envelopes malformados ou incompatibilidades estruturais fatais de contrato.
+   - *O Risco Crítico:* Se o consumidor de mensageria adotar retentativas cegas ou infinitas para uma mensagem venenosa, a mensagem com erro voltará continuamente para a cabeça da fila (*Head-of-Line Blocking*). Isso paralisará completamente a fila de processamento, impedindo que milhares de cobranças perfeitamente válidas acumuladas atrás dela sejam registradas.
+3. **Rejeições por Regras de Negócio Bancárias:** Respostas formais da câmara registradora indicando recusa legítima da cobrança (ex.: *"Documento do pagador inválido"*, *"Convênio bloqueado"* ou *"Data de vencimento fora da regra"*).
+   - *A Regra de Ouro:* Uma rejeição de negócio **não é uma falha técnica de transporte**. O processamento foi executado com sucesso e o resultado final foi a não-aprovação do título. Tentar reenviar uma rejeição para a fila gastaria recursos computacionais e geraria falso alarme de suporte técnico.
 
 ## Decisão
 
-- **Três tentativas no total**, incluindo o primeiro envio. Após a primeira falha temporária, aguardar pelo menos 1 segundo; após a segunda, pelo menos 5 segundos. A próxima execução também depende do polling (1 segundo por padrão) e da duração de outras chamadas do lote.
-- Persistir `tentativas`, `ultimo_erro`, `proxima_tentativa_em` e `falha_definitiva_em` no H2 do emissor. Buscar somente itens ainda não entregues, não isolados e com horário de retry vencido, em lotes de até 20.
-- Falha de conexão, timeout, HTTP 408, 429 e 5xx são retentáveis. Outros HTTP 4xx são tratados como permanentes; exigem corrigir o comando ou a configuração antes de reprocessar. Respostas não 2xx não confirmam entrega.
-- JSON inválido/nulo é permanente e isolado imediatamente, sem gastar novas tentativas de rede.
-- Ao esgotar as três tentativas, isolar a mensagem na própria tabela outbox, preservando payload e diagnóstico. Não reenviar automaticamente os itens isolados. Comandos legados da E4 que já atingiram esse limite também são isolados.
-- Configurar timeouts de conexão de 2 segundos e leitura de 5 segundos no produtor HTTP, evitando esperar indefinidamente por uma chamada.
-- Disponibilizar `GET /interno/outbox/falhas` com os 20 isolamentos mais recentes. Expor somente UUID, quantidade de tentativas, tipo do erro e data da falha, nunca o JSON do boleto.
-- Registrar logs com UUID, tentativa, classificação do erro e próximo horário. Não registrar corpo HTTP, mensagem livre da exceção ou dados pessoais.
-- Rejeição da registradora é resultado de negócio: persistir `REJEITADO`, código e motivo, e confirmar a entrega HTTP. Não fazer retry nem isolar essa mensagem como falha técnica.
+Adotar uma política rigorosa de **Resiliência com Orçamento Finito de Tentativas, Backoff Exponencial e Fila de Quarentena (Dead-Letter Queue - DLQ)**:
 
-## Garantias e limites
-
-O modelo continua permitindo reentregas (at-least-once), não exactly-once. O limite de retry **não garante registro eventual** durante uma indisponibilidade prolongada: após o esgotamento, a mensagem exige análise e intervenção. O isolamento é persistido, mas **não é uma DLQ de RabbitMQ**. Exchange, binding, dead-letter exchange e listener de DLQ continuam pendentes.
-
-Tentativas são contabilizadas ao registrar o resultado da chamada. Se o processo cair entre enviar e persistir esse resultado, poderá haver um envio adicional após reiniciar; a idempotência do consumidor permanece necessária. A execução local suporta um despachante por base H2; coordenação distribuída de múltiplos despachantes não faz parte deste MVP.
-
-Falha técnica não cria `REJEITADO`: sem confirmação de negócio, a consulta pode continuar exibindo `AGUARDANDO_REGISTRO`. Um `POST /boletos` idempotente não reinicia tentativas nem remove o isolamento. Não há endpoint de replay automático nesta etapa; uma operação segura de reprocessamento será uma evolução separada, após corrigir a causa e verificar se o registro já foi efetivado.
+1. **Orçamento Estrito de Três Tentativas:**
+   - 1ª tentativa: envio imediato;
+   - 2ª tentativa (após 1ª falha temporária): espera mínima de **1 segundo**;
+   - 3ª tentativa (após 2ª falha temporária): espera mínima de **5 segundos**.
+2. **Transferência Atômica de Mensagens Venenosas:**
+   - Mensagens com JSON corrompido, cabeçalhos inválidos ou contratos violados são classificadas como falhas permanentes e **transferidas imediatamente para a Quarentena (`registro.quarentena`)**, na mesma transação atômica que confirma a remoção (ACK) da mensagem original da fila de produção. Não gastam tempo nem retentativas de rede.
+3. **Esgotamento de Tentativas e Isolamento:**
+   - Se uma mensagem de comando esgotar as 3 tentativas sob falhas temporárias, ela é encaminhada pelo broker diretamente para a fila de quarentena durável. A fila de produção é imediatamente liberada para o processamento das próximas cobranças.
+4. **Tratamento Adequado de Rejeição de Negócio:**
+   - Quando a câmara registradora recusa o título, o `boleto-registro` persiste o estado definitivo `REJEITADO` com o código e descrição da recusa e confirma a mensagem com sucesso (ACK) no broker. Rejeições de negócio **nunca são enviadas para a quarentena nem sofrem retentativa**.
+5. **Auditoria Forense de Falhas sem Vazamento de Dados Pessoais:**
+   - O emissor mantém rastreabilidade em banco de comandos isolados (`/interno/outbox/falhas`), expondo apenas metadados técnicos (UUID, número de tentativas, tipo do erro e data da falha), sem expor payloads completos, documentos ou dados cadastrais sensíveis nos logs e nas respostas de diagnóstico.
 
 ## Alternativas consideradas
 
-- **Retry infinito:** rejeitado; esconde falhas permanentes e prejudica novos comandos.
-- **Três retries além da primeira tentativa:** rejeitado; adotamos três tentativas totais para evitar ambiguidade.
-- **Isolar rejeição de negócio:** rejeitado; o processamento terminou corretamente com resposta negativa da registradora.
-- **RabbitMQ/DLQ agora:** adiado conforme a decisão do grupo registrada no ADR-007. A migração futura precisa também de confirmação de publicação no broker antes de concluir a outbox.
+- **Retentativa Infinita sem Quarentena:** Rejeitada sumariamente. Um único payload malformado bloquearia toda a esteira de registro de boletos da instituição bancária.
+- **Encaminhar Rejeições de Negócio para a DLQ:** Rejeitada. Poluiria as ferramentas de observabilidade e as filas de emergência de infraestrutura com eventos regulares de negócio que já foram concluídos e persistidos com sucesso.
+- **Descarte Silencioso de Mensagens Falhadas:** Rejeitada. Violação grave de auditoria financeira; toda cobrança que não puder ser processada deve ficar preservada na quarentena para intervenção de engenharia e reconciliação.
 
 ## Consequências
 
-- Itens isolados e em backoff deixam de disputar o lote elegível com mensagens boas.
-- Payloads isolados continuam contendo dados pessoais e exigem acesso restrito, proteção do arquivo H2 e política de retenção em uma implantação real. O endpoint interno não substitui autenticação/autorização.
-- O estado `REJEITADO` exige campos de registradora/data de registro nulos. O script H2 executado após a atualização JPA remove as restrições `NOT NULL` desses dois campos nos bancos da E4, sem apagar registros existentes.
+- **Positivas:**
+  - **Imunidade a Bloqueios de Fila (*Head-of-Line*):** Mensagens corrompidas são isoladas em milissegundos, garantindo que o fluxo de cobranças saudáveis continue operando em velocidade máxima.
+  - **Auto-Recuperação Inteligente:** Flutuações de rede transitórias são superadas automaticamente pelo backoff sem demandar intervenção humana.
+  - **Clareza Operacional:** Separação inequívoca entre incidentes de infraestrutura (Quarentena/DLQ) e respostas legítimas de negócio (`REJEITADO`).
+- **Custos / Mitigações:**
+  - Mensagens isoladas em quarentena exigem procedimentos de inspeção operacional para diagnóstico da causa raiz antes de qualquer decisão de reprocessamento manual.
 
 ## Status
 
-Aceita para a E5 provisória por HTTP, preservada como histórico. Transporte/topologia migrados na E8 conforme [ADR-011](ADR-011-broker-jvm-artemis.md).
-
-### Atualização E8
-
-Limite/backoff/isolamento da outbox são mantidos para **publicação JMS**, com contadores acumulados, sem reset de isolados. Confirmação é commit JMS no broker, não resultado final. Falha de serialização é permanente; erros JMS de conexão/configuração preservam payload e seguem o orçamento de publicação.
-
-O consumidor tem orçamento separado: três entregas totais do broker e mínimos 1 s/5 s; rollback técnico e quarentena no esgotamento. Erros permanentes são transferidos imediatamente, atomicamente com ack do original. Rejeição de negócio continua final, sem DLQ. Contador persistido no broker antes de entregar; idempotência continua necessária entre commit JPA e ack JMS.
-
-Não há RabbitMQ/DLX, mas há DLQ **Artemis** durável. Credenciais/acesso/auditoria e replay operacional continuam E11/E12. [E8: migração, garantias e evidências](../etapas/E8-broker-jvm.md).
+Aceita e implementada na infraestrutura de mensageria e nos listeners dos serviços.

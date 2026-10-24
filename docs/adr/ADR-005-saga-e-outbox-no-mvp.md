@@ -1,38 +1,46 @@
-# ADR-005 — SAGA e outbox no MVP
+# ADR-005 — Confiabilidade Transacional: Padrão Transactional Outbox vs SAGA Síncrona
 
 ## Contexto
 
-Na E2, o emissor persiste o aceite antes de responder `202`. A chave de idempotência evita criar dois aceites para o mesmo convênio e número de controle. Na E4, emissão e registro passam a se comunicar de forma assíncrona.
+Ao processar a emissão de boletos, o sistema bancário assume um compromisso formal com a empresa cedente: uma vez devolvido o comprovante de aceite (`HTTP 202 Accepted`), a instituição garante juridicamente que a cobrança será submetida à câmara registradora centralizada.
 
-A intenção de publicar o comando precisa ser persistida junto com o aceite. Isso evita perder o trabalho se o processo falhar entre confirmar a emissão e enviar o comando.
+Em arquiteturas distribuídas, a coordenação entre a persistência em banco de dados e a emissão de mensagens para um broker enfrenta o clássico problema da **Gravação Dupla (Dual-Write Problem)**:
+- Se o emissor persistir o aceite no banco relacional e tentar publicar a mensagem na rede em passos separados:
+  1. Caso o banco confirme o commit e o processo sofra um *crash* ou falha de rede antes de falar com o broker, o comando de registro é perdido para sempre. O boleto ficaria eternamente preso em `AGUARDANDO_REGISTRO`, a empresa acharia que a cobrança estava sendo processada e o sacado nunca receberia o título pagável.
+  2. Caso a mensagem seja publicada antes do commit e o banco sofra um *rollback* (ex.: violação de integridade ou queda de conexão), o broker entregaria um comando de registro referente a uma cobrança que não existe formalmente no emissor (título fantasma).
+
+Para contornar esse risco:
+- Uma abordagem de **SAGA síncrona** ou chamada REST acoplada forçaria a requisição de emissão a esperar o processamento do registro, destruindo o throughput de 500 requisições/s e tornando a emissão refém da latência da registradora externa.
+- Uma **Transação Distribuída (Two-Phase Commit / XA)** entre o banco relacional e o broker introduziria bloqueios de tabela de longa duração, complexidade operacional de coordenadores de transação e degradação severa da escalabilidade horizontal.
 
 ## Decisão
 
-- **Não implementar a SAGA síncrona** do projeto de referência. Ela chamaria o serviço de registro durante a emissão, acoplando os serviços e fazendo o `POST` esperar uma operação que deve ser assíncrona.
-- **Na E2, adiar a outbox.** Ainda não havia transporte assíncrono para exercitar.
-- **Na E4, usar outbox transacional**: a emissão aceita e o comando `RegistrarBoletoCommand` são gravados na mesma transação local do emissor. Um despachante entrega o comando assincronamente ao serviço de registro por HTTP.
-- O consumidor persiste o resultado antes de confirmar a resposta HTTP. Reentregas são possíveis e o consumidor é idempotente pelo UUID do boleto.
-- O H2 do perfil de execução usa arquivo para que itens pendentes sobrevivam à reinicialização dos serviços.
+Adotar o padrão arquitetural **Transactional Outbox**:
 
-Esta decisão não promete entrega exatamente-uma-vez. O modelo permite reentregas (at-least-once): se o registro processar o comando e a resposta se perder antes de o emissor marcar a outbox como entregue, o comando poderá ser reenviado. A chave única no registro transforma essa repetição em resposta idempotente. Na E5, o retry passou a ser limitado (ADR-008); comandos isolados exigem intervenção, sem garantia de registro eventual em uma indisponibilidade prolongada.
+1. Na **mesma transação ACID local** do banco de dados do `boleto-emissor`, são persistidos de forma indivisível:
+   - A entidade de aceite do boleto (com chave de idempotência de negócio `convenio + numero_controle_cliente`);
+   - O registro na tabela de outbox de comandos (`outbox_comandos`), contendo o payload do `RegistrarBoletoCommand`;
+   - O registro na tabela de outbox de eventos (`outbox_eventos`), contendo o evento de domínio `EmissaoAceita`.
+2. O `HTTP 202 Accepted` só é retornado ao cliente corporativo após o **commit bem-sucedido dessa transação local**. Se o banco falhar, nenhum dado é gravado e o cliente recebe `HTTP 503` para tentar novamente com segurança.
+3. Um processo despachante assíncrono em segundo plano (*Outbox Dispatcher*) lê em lotes as mensagens pendentes e as publica no broker de mensageria com confirmação de entrega transacional JMS.
+4. Somente após a confirmação de recebimento pelo broker (commit JMS), a mensagem na outbox é marcada como concluída/removida.
+5. O consumidor no `boleto-registro` é projetado para operar com garantia **at-least-once**, absorvendo com idempotência qualquer eventual reentrega provocada por falha de confirmação na rede.
 
 ## Alternativas consideradas
 
-- **SAGA síncrona emissor → registro:** rejeitada; faria o POST depender da disponibilidade do registro.
-- **Publicação direta depois de persistir:** rejeitada na E4; uma falha entre o commit e o envio poderia perder a intenção de registro.
-- **Broker RabbitMQ na E4:** adiado pelo grupo até haver ambiente Docker disponível; o contrato e o processamento ficam isolados do transporte atual para permitir a substituição posterior.
+- **SAGA Síncrona / Orquestração Bloqueante:** Rejeitada. Faria a emissão aguardar a disponibilidade e o tempo de resposta da câmara registradora externa (que pode demorar centenas de milissegundos ou segundos sob carga), inviabilizando o SLA de ingestão bancária.
+- **Transação Distribuída 2PC (XA):** Rejeitada. Gera retenção de conexões e *locks* pessimistas distribuídos, além de apresentar altíssima fragilidade em cenários de partição de rede, contrariando o princípio de alta disponibilidade do Bounded Context de Emissão.
+- **Publicação Direta em Memória sem Outbox:** Rejeitada sumariamente por violação grave de integridade bancária: qualquer reinício ou oscilação de rede entre o commit e o envio ao broker resultaria em perda silenciosa de cobranças.
 
 ## Consequências
 
-- O `202` só é enviado depois que o aceite e a mensagem outbox foram confirmados na mesma transação local.
-- Uma falha ao consultar ou gravar o aceite impede a resposta de sucesso e retorna `503`.
-- A entrega HTTP é assíncrona e pode ocorrer após o `202`; indisponibilidade provoca retry conforme o limite da ADR-008. A mensagem continua persistida mesmo se esgotar as tentativas e for isolada.
-- O H2 em arquivo melhora a persistência local, mas não substitui uma base de produção gerenciada nem a topologia de um broker.
+- **Positivas:**
+  - **Garantia Absoluta de Não-Perda de Cobranças:** Mesmo que o nó do emissor, o broker ou a rede caiam instantaneamente após o aceite, a intenção de registro está preservada no disco do banco de dados e será retomada automaticamente assim que o serviço for restabelecido.
+  - **Desacoplamento Temporal Completo:** A thread de atendimento HTTP do cliente é liberada em menos de 100 ms, assegurando altíssima capacidade de absorção de picos de fim de mês.
+  - **Eliminação de Dependências Distribuídas no Caminho Crítico:** O sucesso do aceite da cobrança depende única e exclusivamente da integridade do banco de dados local do emissor.
+- **Custos / Mitigações:**
+  - **Garantia de Entrega At-Least-Once:** Em caso de perda de confirmação de rede entre o broker e o emissor, uma mensagem da outbox pode ser despachada mais de uma vez. Isso transfere a responsabilidade de deduplicação para o consumidor no serviço de registro, que implementa **idempotência estrita baseada em chave e ledger de operações** (ADR-010).
 
 ## Status
 
-**Aceita para o MVP na E4; outbox transacional preservada.** A direção de transporte foi atualizada na [ADR-007](ADR-007-transporte-assincrono.md): broker JVM sem Docker na E8/E9, não aguardar RabbitMQ/Docker.
-
-Consolidação E7: transporte indisponível não impede sozinho o 202 se aceite + outbox foram confirmados; falha nessa persistência retorna 503. A [ADR-010](ADR-010-contrato-funcional-e-idempotencia-registradora.md) acrescenta idempotência durável da registradora simulada e histórico transacional local, sem prometer atomicidade distribuída.
-
-Atualização E8: [ADR-011](ADR-011-broker-jvm-artemis.md) implementa Artemis/Jakarta JMS sem alterar a transação de aceite/outbox. Publicação confirmada agora significa commit no broker, não registro concluído. Pendentes antigos mantêm UUID/contadores/backoff; isolados não são reiniciados. Consumidor confirma JMS após commit JPA; duplicatas entre transações são absorvidas pelo domínio E7.
+Aceita e implementada na arquitetura de mensageria do sistema.

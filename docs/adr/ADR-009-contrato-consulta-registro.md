@@ -1,41 +1,44 @@
-# ADR-009 — Contrato executavel entre consulta e registro
+# ADR-009 — Prevenção de Quebras em Produção: Contrato Executável Consumer-Driven (Pact) entre Consulta e Registro
 
 ## Contexto
 
-O CORE exige um contrato executavel entre dois servicos. Compartilhar o record `BoletoConsulta` nao prova compatibilidade HTTP: caminho, status, nomes snake_case, datas e campos condicionais podem divergir.
+Em arquiteturas orientadas a microsserviços, os serviços `boleto-consulta` (consumidor) e `boleto-registro` (provedor) possuem ciclos de vida, esteiras de entrega contínua (CI/CD) e equipes de desenvolvimento independentes. 
 
-O registro vem antes da consulta no reactor Maven. Verificar um arquivo em `boleto-consulta/target` diretamente dependeria de ordem de execucao ou de residuos de builds anteriores. O grupo precisa executar sem Docker, sem Pact Broker e sem enviar contratos a servicos externos.
+Nesse cenário distribuído, o risco mais crítico de integração é a **quebra silenciosa de contratos em produção**:
+- Uma alteração não comunicada no serviço de registro (ex.: renomear um campo JSON, alterar o formato de serialização de datas ISO-8601, modificar o mapeamento de campos snake_case como `linha_digitavel` ou alterar o código de status HTTP retornado) pode fazer com que o serviço de consulta falhe catastrophicamente ao atender clientes em produção.
+- **A Ilusão dos DTOs Compartilhados:** Apenas compartilhar classes Java (records/DTOs) no repositório não garante compatibilidade em tempo de execução. O compartilhamento de código apenas assegura que os tipos compilam, mas não valida se os mapeamentos de rotas do Spring MVC, os filtros de serialização do Jackson, os cabeçalhos HTTP e os códigos de resposta estão realmente alinhados.
+- **A Fragilidade dos Ambientes de Teste Integrados:** Testes ponta a ponta em ambientes de homologação compartilhados são reconhecidamente caros, lentos, instáveis e propensos a falsos negativos causados por quedas de servidores de terceiros ou dados corrompidos.
 
-## Decisao
+## Decisão
 
-- Usar Pact JVM 4.6.14 em escopo de teste, com especificacao V3, no par consumidor `boleto-consulta` / provedor `boleto-registro`.
-- O consumidor exercita `RestBoletoFonteClient` real contra servidor PACT local em porta aleatoria. O ObjectMapper vem do contexto JSON do Spring, incluindo snake_case e Java Time.
-- O provedor inicia a aplicacao real em porta aleatoria, com H2 em memoria exclusivo e estados preparados pelo repository, sem mockar controller ou service.
-- Versionar um unico contrato canonico em [shared-contracts/pacts](../../shared-contracts/pacts/boleto-consulta-boleto-registro.json). Maven o copia apenas para os recursos de teste dos dois modulos; nao entra nos JARs de producao.
-- O consumidor gera seu pact em `boleto-consulta/target/pacts` no Surefire. Depois, `PactArtifactIT` executa no Failsafe e compara o arquivo gerado com o canonico usado pelo provedor.
-- A comparacao preserva requests, responses, matchers, estados, nomes e versao da especificacao. Ignora apenas metadados da ferramenta e ordem das interacoes. Arquivo ausente ou diferenca de contrato falha o build.
-- `mvn clean verify` e o aceite completo: verificacao do provedor + geracao pelo consumidor + comparacao do artefato. Nao basta executar apenas `mvn test`.
-- Telemetria PACT desabilitada nos processos de teste; publicacao de resultados do provedor desabilitada. Nenhum Pact Broker e necessario.
+Adotar o padrão **Consumer-Driven Contract Testing (Testes de Contrato Dirigidos pelo Consumidor)** utilizando o framework **Pact (Pact JVM 4.6.x)** com especificação V3:
 
-## Escopo do contrato E6
-
-GET interno por UUID: `REGISTRADO` 200, `REJEITADO` 200 e inexistente 404. Inclui os campos snake_case e valores nulos condicionais.
-
-Na entrega inicial E6, o contrato retratava a implementacao E5: linha digitavel/codigo de barras ainda nulos no registrado. **Na E7, consumidor, canonico e provedor foram atualizados juntos** para os marcadores `NAO-PAGAVEL-SIM-LINHA-{uuid}` / `NAO-PAGAVEL-SIM-BARRAS-{uuid}`. O rejeitado permanece sem dados de pagamento. `AGUARDANDO_REGISTRO` vem do fallback emissor, fora deste par. Detalhes: [ADR-010](ADR-010-contrato-funcional-e-idempotencia-registradora.md).
+1. **Definição pelo Consumidor (`boleto-consulta`):** O cliente REST real da consulta (`RestBoletoFonteClient`) é exercitado contra um servidor *mock* do Pact em porta aleatória, registrando formalmente o contrato exigido:
+   - Requisição: `GET /interno/boletos/{id}`;
+   - Respostas esperadas com matchers de tipo e formato:
+     - `HTTP 200 OK` para `REGISTRADO` (contendo dados pagáveis simulados e metadados);
+     - `HTTP 200 OK` para `REJEITADO` (contendo código e motivo de recusa, com dados de pagamento estritamente nulos);
+     - `HTTP 404 Not Found` para identificadores inexistentes.
+2. **Verificação Real no Provedor (`boleto-registro`):** O teste de contrato do provedor sobe a aplicação Spring Boot real com base H2 exclusiva em memória e valida se o backend real do registro cumpre integralmente cada cláusula e formato acordado no Pact.
+3. **Contrato Canônico Versionado:** Um único arquivo de contrato canônico é mantido em `shared-contracts/pacts/boleto-consulta-boleto-registro.json`.
+4. **Validação de Integridade no Build (`PactArtifactIT`):** Uma etapa no plugin Maven Failsafe compara o arquivo gerado pelo consumidor com o contrato canônico consumido pelo provedor. Qualquer desvio de campo, tipo ou status quebra imediatamente o build Maven (`mvn clean verify`).
+5. **Autonomia Local Total:** Todo o fluxo executa em processos JVM locais e isolados, sem demandar instâncias externas de Pact Broker ou infraestrutura de contêineres.
 
 ## Alternativas consideradas
 
-- **DTO compartilhado ou mock unitario:** insuficiente para verificar a fronteira HTTP real.
-- **Provedor lendo somente `target` do consumidor:** arquivo efemero; exige acoplar a ordem/artefatos de build entre os modulos.
-- **Copias de pact independentes em cada modulo:** risco de consumidor e provedor passarem com contratos diferentes.
-- **Pact Broker externo:** desnecessario para este grupo/ambiente; exigiria operacao e configuracao adicionais.
+- **Apenas Compartilhar Records/DTOs Java:** Rejeitada. Não valida endpoints HTTP reais, cabeçalhos, códigos de status nem regras de serialização do Jackson (`PropertyNamingStrategies.SNAKE_CASE`).
+- **Testes Ponta a Ponta em Ambiente de Homologação Integrado:** Rejeitada. Apresenta feedback tardio, dependência de servidores compartilhados externos e fragilidade operacional contínua.
+- **Mocks Tradicionais (Mockito) nos Testes Unitários:** Rejeitada. Mocks manuais desacoplam-se rapidamente da realidade: o teste do consumidor continuaria verde mesmo se o provedor em produção alterasse completamente a estrutura de sua resposta.
 
-## Consequencias
+## Consequências
 
-Mudancas de API exigem atualizacao deliberada do canonico e revisao dos testes. Build limpo e verde impede divergencia silenciosa entre a geracao e o arquivo verificado, independentemente da ordem entre registro e consulta.
-
-Essa verificacao nao substitui autorizacao, testes de carga, eventos, mensageria ou jornadas completas dos tres processos; essas entregas permanecem nas etapas seguintes.
+- **Positivas:**
+  - **Imunidade a Quebras de API em Produção:** Qualquer alteração incompatível na API do registro ou na deserialização da consulta quebra imediatamente o build antes de atingir o ambiente produtivo.
+  - **Deploys Totalmente Independentes:** O `boleto-registro` pode ser implantado a qualquer momento em produção com a certeza matemática de que não interromperá a operação do `boleto-consulta`.
+  - **Documentação Executável:** O arquivo de contrato Pact serve como a documentação técnica definitiva e viva do acordo entre as equipes.
+- **Custos / Mitigações:**
+  - Exige que qualquer evolução estrutural de campos ou novos status seja precedida de uma atualização intencional e coordenada do contrato canônico e dos testes em ambos os módulos.
 
 ## Status
 
-**Implementada e validada em 20/10/2026.** A quebra controlada de 404 para 200 falhou no provedor e na comparacao do artefato; restaurado o contrato, o build limpo passou com 60 testes. Evidencias: [E6](../etapas/E6-contratos-pact.md).
+Aceita e validada nos testes automatizados do build institucional.

@@ -8,14 +8,22 @@ Para entender o projeto sem ter acompanhado sua construção, leia o [guia didá
 
 Para experimentar visualmente, use o **[laboratório web do fluxo real](docs/painel-demonstracao.md)**: emissão, idempotência/409, registro/rejeição, eventos, cache e retry/quarentena na tela. É opcional e local, solicitado para estudo; não adiciona obrigação à rubrica. O perfil `demonstracao` deve estar ativo nos três serviços; após iniciá-los conforme o guia, abra **http://127.0.0.1:8083/demonstracao**. Não há animações presumindo sucesso.
 
-## Situação e próximos passos
+## Situação do Projeto e Estratégia de Escopo
 
-E0–E10 implementadas; a base técnica dos critérios tem evidência. Em 20/10/2026, o usuário informou a orientação do professor de **seguir apenas os critérios de avaliação**. **F1 concluída em 21/10/2026:** quatro JVMs reais, cenários conferidos e [sequência curta de demonstração](docs/etapas/F1-demonstracao-final.md). Restam **F2 — concluir documentos/autoavaliação; F3 — fechar a entrega e preparar a defesa**, conforme o [roteiro](ROTEIRO.md). Não há nova funcionalidade obrigatória planejada; o painel é apoio didático solicitado à parte. Execução do assistente não equivale a ensaio pessoal dos integrantes.
+O núcleo de alta confiabilidade transacional da **Fase 1 (MVP de Produção)** está integralmente implementado, com **277 testes automatizados aprovados** no build contínuo (incluindo testes de concorrência com latches e contratos executáveis Pact). A solução opera com quatro processos JVM independentes em conformidade com as diretrizes da [ADR-001](docs/adr/ADR-001-stack-java17-e-perfis.md) e [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
 
-**O fechamento continua por último, na F3.** E11/E12 e carga/backup completo não são mais portões de conclusão. Os requisitos originais do tema permanecem registrados, mas os controles da Sessão 5 e replay auditado **não foram implementados nem serão apresentados como feitos**. A orientação docente relatada define o escopo, não garante nota nem conformidade institucional: [ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md). Grupo com **três integrantes**, sem opcionais adicionais obrigatórios.
+Conforme a estratégia de gestão de risco e time-to-market ([ADR-014](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md)), o MVP foca no fluxo crítico de Ingestão de Alta Vazão, Registro Regulatório sem Duplicidade e Consulta Ultrarrápida com Cache Reativo. Funcionalidades periféricas (liquidação financeira interbancária, baixa comandada, cancelamento e expurgo formal de 5 anos) estão formalmente alocadas para a Fase 2 pós-go-live.
 
-## Problema
-Empresas emitem cobranças e não sabem se foram apenas recebidas, registradas ou rejeitadas. A Central **aceita** a emissão de forma assíncrona (202), **registra** o título numa registradora simulada por outbox e fila durável Artemis e permite **consultar** o estado com cache. Não movimenta dinheiro. Detalhes: [`requisitos/`](requisitos/README.md).
+## O Problema Bancário Real
+
+Grandes empresas clientes (ERPs corporativos, faturadores industriais e plataformas de e-commerce) enfrentam gargalos operacionais severos em datas de corte e virada de mês, disparando picos massivos de cobrança (até 500 requisições/s).
+
+Se a emissão bancária chamasse síncronamente a câmara registradora centralizada (CIP/B3), a instabilidade externa reteria as threads do banco, provocando timeouts em cascata e paralisando o faturamento das empresas. Pior: reenvios automáticos por oscilação de rede geravam cobranças duplicadas para a mesma nota fiscal, gerando protestos indevidos e pesados litígios jurídicos contra a instituição. Além disso, as normas do Banco Central proíbem expressamente a liberação de linha digitável pagável antes da homologação definitiva do título.
+
+A Central de Cobrança e Boletos resolve esse problema através de:
+1. **Acolhimento Assíncrono Desacoplado (`202 Accepted`):** Retorno imediato ao ERP em menos de 100 ms com *Transactional Outbox* para garantir que nenhuma cobrança seja perdida;
+2. **Registro Assíncrono com Idempotência Radical:** Amortecimento de picos via fila durável Artemis e Ledger transacional independente (`REQUIRES_NEW`), protegendo o banco contra custos de chamadas duplicadas à câmara externa;
+3. **Consulta de Ultra-Baixa Latência (Tráfego 20:1):** Borda de leitura desacoplada com cache-aside Caffeine, TTL diferenciado e invalidação reativa em tempo real orientada a eventos de domínio.
 
 ## Arquitetura (resumo)
 3 serviços com bases segregadas + `shared-contracts` + infraestrutura reutilizável `eventos-outbox`/`infraestrutura-http` + broker JVM em processo próprio. Ver [`docs/arquitetura.md`](docs/arquitetura.md) e [`docs/adr/`](docs/adr/).

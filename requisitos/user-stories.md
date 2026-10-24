@@ -104,25 +104,23 @@ Pagamento/liquidação; alteração, cancelamento, protesto, negativação; baix
 
 ---
 
-## Rastreabilidade (história → sessão → etapa do projeto)
+## Rastreabilidade (História → Capacidade Arquitetural → Fase de Entrega)
 
-O [roteiro final](../ROTEIRO.md) distingue implementação parcial de aceite completo. As sessões continuam preservadas como histórico; premissas substituídas remetem à decisão vigente.
+Conforme a estratégia de **Time-to-Market e Gestão de Risco do MVP** formalizada na [ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md), o escopo foi fatiado entre a **Fase 1 (MVP — Núcleo de Alta Confiabilidade Transacional)** e a **Fase 2 (Pós-Go-Live — Expansão de Negócio e Governança)**:
 
-**Revisão de entrega em 20/10/2026:** após o usuário informar a orientação do professor de seguir apenas os critérios de avaliação, o [roteiro](../ROTEIRO.md) substitui E11–E15 por F1–F3. A especificação acima não foi reescrita: requisitos da Sessão 5 continuam **não implementados integralmente**, mas não bloqueiam a entrega avaliada. E12/carga deixam de ser portões. Referências abaixo a E14 correspondem à conferência enxuta F1, sem exigir p95; não são tarefas adicionais. [ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
-
-| História | Sessão | Base implementada | Complemento/aceite planejado | Critério da rubrica relacionado |
+| História | Sessão | Implementação na Fase 1 (MVP) | Status no MVP | Padrão Arquitetural Relacionado |
 |---|:-:|---|---|:-:|
-| US-01 | 1, 2 | E1/E2 — aceite persistido; E7 — matriz e validação estrutural compartilhada, 202/outbox esclarecido | E14: jornada integrada | 1, 3 |
-| US-02 | 2 | E2 — chave, fingerprint e conflito; E7 — regressão preservada | E14: jornada integrada | 3 |
-| US-03 | 1, 4 | E7 — dados não pagáveis/histórico; E8 — fila durável Artemis e prova em processos separados | E14: jornadas integradas | 1, 2 |
-| US-04 | 3 | E3/E5 — consulta por estado; E6/E7 — PACT e dados simulados atualizados | E14: aceite; autorização da Sessão 5 não atendida/fora da entrega atual | 4, 6 |
-| US-05 | 3 | E3 — cache-aside/TTL; E9 — invalidação final e corrida com preenchimento testada | F1: demonstração/cache; p95 e controle de acesso não validados, fora dos portões atuais | 4 |
-| US-06 | 4 | E8 — publicação/redelivery limitados por fronteira; E10 — limites HTTP, circuitos independentes e recuperação sem retry extra | F1: selecionar provas existentes de falhas; sem etapa operacional E12 | 5 |
-| US-07 | 4 | E8 — isolamento produtor e DLQ Artemis durável; transferência atômica de inválidos | Parcial: acesso restrito/reprocessamento auditado não atendidos, fora da entrega atual | 5 |
-| US-08 | 4 | E4 — consumidor idempotente; E7 — ledger externo simulado, resposta perdida/rollback recuperáveis | E14: recuperação integrada suportada; replay operacional auditado não entregue | 3 |
-| US-09 | 4 | E9 — três eventos/outbox/assinaturas; E10 — correlação HTTP validada e preservada até eventos/invalidação | E14: aceite integrado; proteção da Sessão 5 não atendida integralmente | 2, 3 |
-| US-10 | 5 | E10 — correlação/logs mínimos, sem trilha persistida | **Não atendida** integralmente; auditoria/replay fora da entrega atual (ADR-014) | 7, 9 |
-| US-11 | 5 | Minimização parcial; sem autorização ou criptografia comprovada | **Não atendida** integralmente; E11 não implementada/fora da entrega atual | 1, 7 |
-| US-12 | 5 | Hipótese de retenção documentada, sem política formal implementada | **Não atendida**; fora da entrega atual; backup local não substitui retenção | 7 |
+| **US-01** | 1, 2 | Aceite persistido atômico com Transactional Outbox; validação estrutural canônica compartilhada | **Entregue** | Bounded Context Emissor, Transactional Outbox ([ADR-005](../docs/adr/ADR-005-saga-e-outbox-no-mvp.md)) |
+| **US-02** | 2 | Idempotência radical por convênio + número de controle, hash SHA-256 e conflito 409 | **Entregue** | Deduplicação de Entrada ([ADR-003](../docs/adr/ADR-003-corte-tres-servicos.md)) |
+| **US-03** | 1, 4 | Fila durável ANYCAST Artemis (`registro.comandos`), dados não-pagáveis e histórico atômico | **Entregue** | Comunicação Assíncrona ([ADR-007](../docs/adr/ADR-007-transporte-assincrono.md), [ADR-011](../docs/adr/ADR-011-broker-jvm-artemis.md)) |
+| **US-04** | 3 | Consulta com fallback em duas fontes cobrindo a janela transitória sem falso 404 | **Entregue** | Fallback de Leitura ([ADR-004](../docs/adr/ADR-004-fonte-do-estado-inicial.md)), Contrato Pact ([ADR-009](../docs/adr/ADR-009-contrato-consulta-registro.md)) |
+| **US-05** | 3 | Cache-aside Caffeine com TTL diferenciado e invalidação reativa em tempo real | **Entregue** | Cache-aside ([ADR-006](../docs/adr/ADR-006-cache-consulta.md)), Invalidação Reativa ([ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md)) |
+| **US-06** | 4 | Resiliência com 3 tentativas e backoff (1s/5s) na outbox e consumidor; timeouts e Circuit Breakers | **Entregue** | Resiliência e Circuit Breaker ([ADR-008](../docs/adr/ADR-008-retry-e-isolamento-outbox.md), [ADR-013](../docs/adr/ADR-013-resiliencia-e-correlacao.md)) |
+| **US-07** | 4 | Quarentena durável no Artemis (`registro.quarentena`) para contenção imediata de Poison Pills | **Entregue** | Dead-Letter Queue / Quarentena ([ADR-008](../docs/adr/ADR-008-retry-e-isolamento-outbox.md)) |
+| **US-08** | 4 | Consumidor idempotente com Ledger de operações externas em transação isolada `REQUIRES_NEW` | **Entregue** | Idempotência Externa ([ADR-010](../docs/adr/ADR-010-contrato-funcional-e-idempotencia-registradora.md)) |
+| **US-09** | 4 | Tópico pub/sub MULTICAST com envelopes de eventos mínimos (7 metadados) sem dados sensíveis | **Entregue** | Event-Driven Architecture ([ADR-012](../docs/adr/ADR-012-eventos-e-invalidacao.md)) |
+| **US-10** | 5 | Logs estruturados com Correlation ID propagado ponta a ponta sem vazar dados sensíveis | **Fase 1 Parcial / Fase 2** | Rastreabilidade Distribuída ([ADR-013](../docs/adr/ADR-013-resiliencia-e-correlacao.md)) |
+| **US-11** | 5 | Minimização estrita em eventos e logs; autenticação mTLS e HSM planejados para a Fase 2 | **Fase 2** | Governança Corporativa ([ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md)) |
+| **US-12** | 5 | Hipótese regulatória de retenção fiscal de 5 anos; rotinas de expurgo automatizado para a Fase 2 | **Fase 2** | Retenção Arquivística Fiscal ([ADR-014](../docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md)) |
 
-US-09–12 permanecem **requisitos originais do tema**, não prova de controles existentes. A orientação docente relatada define a avaliação pelos critérios gerais, sem exigir implementação integral dessas histórias. A ADR-014 registra a mudança, sem eliminar a especificação nem comprovar aceite funcional de US-10/11/12. **F3 é o fechamento, após F1/F2**, conforme o roteiro vigente.
+A delimitação entre a Fase 1 e a Fase 2 assegura que o núcleo crítico transacional entre em produção com confiabilidade inabalável, deixando as integrações periféricas de segurança corporativa para o ciclo de pós-estabilização.

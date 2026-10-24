@@ -1,23 +1,43 @@
-# ADR-004 — Quem guarda o estado inicial (AGUARDANDO_REGISTRO) para a consulta?
+# ADR-004 — Resolução da Janela de Consistência Eventual: Fallback em Duas Fontes na Consulta
 
 ## Contexto
-Sessão 3: *"Se nós emitimos um identificador, a consulta deve encontrar ao menos o estado inicial. Não devemos devolver 404 para algo aceito."* Mas o `boleto-registro` (dono do estado do título) só passa a conhecer o boleto **depois** de consumir a fila. Entre o 202 e o consumo existe uma **janela** em que só o `boleto-emissor` sabe que o boleto existe.
 
-> **Esta é uma decisão importante da E1: ela afeta consulta, cache e eventos. O solicitante informou em 19/10/2026 que a opção C foi discutida e aceita pelo grupo.**
+Quando um sistema cliente (ERP corporativo) submete uma cobrança à Central, o `boleto-emissor` valida os dados, persiste a intenção e responde imediatamente com `202 Accepted`, informando o identificador (UUID v4) e o status transitório `AGUARDANDO_REGISTRO`.
 
-## Opções
-- **A — Consulta lê só do registro, e o registro cria a linha no recebimento da mensagem.** Ainda deixa a janela (mensagem na fila, não consumida) → 404 para algo aceito. **Não atende.**
-- **B — O emissor é o dono do estado e o registro devolve o resultado ao emissor.** Resolve a janela, mas inverte o fluxo e acopla emissor ↔ registro; consulta passa a ler do emissor (leitura pesada num serviço de escrita). **Rejeitada.**
-- **C — Fallback em duas fontes:** consulta tenta o **registro**; se 404, tenta o **aceite no emissor** (endpoint interno de leitura) e devolve `AGUARDANDO_REGISTRO`; só então 404. Mantém cada serviço dono do seu dado (emissor = aceite; registro = título). Custo: na janela, 2 chamadas e a consulta conhece 2 fontes.
-- **D — Read model próprio da consulta (CQRS)**, alimentado por eventos (`EmissaoAceita`, `BoletoRegistrado`, `RegistroRejeitado`). Maior desacoplamento e leitura mais rápida, mas exige eventos/outbox (E4+ e opcionais) e consistência eventual do próprio read model.
+Como o processamento regulatório é assíncrono (desacoplado por outbox e fila de mensageria), existe uma **janela temporal de consistência eventual** entre o momento em que a emissão confirma o aceite e o momento em que o `boleto-registro` consome a mensagem e persiste o título em sua própria base. Em condições normais essa janela dura milissegundos, mas durante picos de fim de mês ou oscilações da câmara externa ela pode durar vários segundos.
+
+Durante esse intervalo transitório:
+- O `boleto-registro` ainda **não possui o registro** em suas tabelas.
+- Apenas o `boleto-emissor` possui o registro persistido do aceite em seu banco de dados.
+
+**O Risco Crítico de Negócio:**
+Se o cliente consultar o estado do boleto imediatamente após receber o HTTP 202 e a Consulta buscar dados exclusivamente no serviço de Registro, o sistema responderá com **HTTP 404 Not Found**. Para o cliente bancário, isso é catastrófico: *"O banco acabou de emitir um comprovante dizendo que recebeu minha cobrança, mas ao consultar diz que o boleto não existe! O sistema perdeu meus dados!"*. Isso levaria o cliente a reenviar a remessa em pânico, gerando duplicidade de cobranças e sobrecarga severa no suporte operacional.
 
 ## Decisão
-**Opção C para o MVP**, aceita pelo solicitante em 19/10/2026. A opção D fica registrada como evolução quando houver eventos/outbox. Em C, o cache usará **TTL curto (30 s)** para `AGUARDANDO_REGISTRO`, para não prender o estado transitório (detalhe em ADR da E3).
+
+Adotar a estratégia de **Fallback em Duas Fontes no Serviço de Consulta (Opção C)**:
+
+1. Ao receber uma consulta de boleto no *cache miss*, o `boleto-consulta` requisita prioritariamente o `boleto-registro` (que é a autoridade máxima sobre os estados finais `REGISTRADO` e `REJEITADO`).
+2. **Se e somente se o registro responder HTTP 404 Not Found**, a consulta aciona imediatamente um *fallback* interno ao `boleto-emissor` (`GET /interno/boletos/{id}`).
+3. Se o emissor localizar o aceite, a consulta projeta o estado `AGUARDANDO_REGISTRO`, armazena no cache com **TTL curto (30 segundos)** e responde HTTP 200 ao cliente.
+4. Somente se **ambos os serviços responderem 404**, a consulta responde 404 ao cliente, garantindo que o título realmente nunca foi recebido pelo banco.
+5. Se qualquer uma das fontes apresentar erro de conexão, timeout ou erro 5xx, a consulta responde **HTTP 503 Service Unavailable** com `X-Correlation-ID`; **falha técnica nunca é mascarada como 404 Not Found**.
+
+## Alternativas consideradas
+
+- **Consulta lê exclusivamente do Registro (Opção A):** Rejeitada. Devolveria 404 falso para qualquer consulta disparada na janela de processamento assíncrono, quebrando a integridade percebida pelo cliente e violando a regra básica de UX bancária.
+- **Emissor como Dono Central de Estados (Opção B):** Rejeitada. Exigiria que o Registro chamasse o Emissor de volta para atualizar o estado final, acoplando os dois serviços bidirecionalmente e sobrecarregando o serviço de emissão com todo o tráfego massivo de consulta (20:1).
+- **CQRS com Read Model Próprio na Consulta (Opção D):** Considerada para fases futuras. Criar uma base de dados relacional própria na consulta alimentada exclusivamente por eventos de domínio adicionaria a complexidade de gerenciar a consistência eventual do próprio banco de leitura, além de exigir infraestrutura de persistência adicional no MVP. A Opção C resolve a dor de negócio sem necessidade de banco de dados na consulta.
 
 ## Consequências
-- A consulta não tem base própria no MVP; precisa de dois clientes REST internos (registro, emissor).
-- O emissor ganha `GET /interno/boletos/{id}` (E2, quando persistir o aceite).
-- Falha técnica em qualquer fonte → 503, **nunca** 404 (sessão 3).
+
+- **Positivas:**
+  - **Eliminação Absoluta do "Falso 404":** O cliente corporativo sempre obtém visibilidade imediata de sua solicitação, mesmo milissegundos após o aceite assíncrono.
+  - **Arquitetura Leve na Consulta:** O `boleto-consulta` permanece *stateless* em termos de persistência relacional (sem banco relacional próprio), operando de forma extremamente rápida com cache em memória e clientes REST.
+  - **Respeito à Autoridade de Domínio:** O emissor é a autoridade sobre o aceite inicial; o registro é a autoridade sobre o título final.
+- **Custos / Mitigações:**
+  - Na janela transitória de um boleto recém-emitido, a consulta executa duas chamadas HTTP em cascata (registro → emissor). Esse custo é absorvido e mitigado pelo cache Caffeine (ADR-006), timeouts agressivos de rede e Circuit Breakers independentes por fonte (ADR-013).
 
 ## Status
-**Aceita pelo grupo (conforme confirmação do solicitante) e implementada no fluxo E2/E3.** O emissor persiste o aceite e fornece leitura interna desde a E2; a consulta executa o fallback nesta E3.
+
+Aceita e implementada no fluxo de integração entre consulta, registro e emissor.

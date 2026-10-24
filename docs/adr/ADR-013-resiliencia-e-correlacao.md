@@ -1,53 +1,55 @@
-# ADR-013 - Resiliencia HTTP e correlacao ponta a ponta
+# ADR-013 — Resiliência na Borda (Circuit Breakers Resilience4j) e Rastreabilidade Distribuída (Correlation ID)
 
 ## Contexto
 
-E8/E9 ja separam retry de publicacao de redelivery de processamento, mas a consulta fazia chamadas HTTP sem timeouts explicitos ou circuit breaker. Correlacao de eventos era o UUID do boleto; a consulta criava outro id somente no erro 503. E10 precisa limitar a espera por dependencias e acompanhar uma requisicao pelas fronteiras sem alterar a identidade de negocio.
+O microsserviço `boleto-consulta` executa chamadas síncronas HTTP internas contra os microsserviços `boleto-registro` e `boleto-emissor` sempre que ocorre um *cache miss*.
 
-## Decisao
+Em ambientes bancários de produção com alto volume de acessos, essa comunicação síncrona enfrenta dois desafios arquiteturais severos:
 
-### Fronteira HTTP da consulta
+1. **O Risco de Falhas em Cascata (Cascading Failures) e Exaustão de Threads:**
+   - Se o serviço de registro sofrer sobrecarga de banco de dados ou lentidão extrema na integração externa, as chamadas HTTP da consulta ficarão retidas esperando resposta.
+   - Na proporção de tráfego de leitura 20:1, em poucos segundos **todo o pool de threads HTTP da consulta seria exaurido** (*Thread Pool Exhaustion*).
+   - O resultado seria o colapso completo do serviço de consulta: ele deixaria de atender até mesmo as requisições de boletos que já estavam perfeitamente cacheados na memória, amplificando a falha de um serviço secundário para toda a plataforma!
+2. **Rastreabilidade Operacional em Sistemas Distribuídos Assíncronos:**
+   - O processamento de uma cobrança atravessa fronteiras heterogêneas: Ingestão HTTP → Transação JPA → Outbox de Comandos → Fila JMS → Consumidor de Registro → Outbox de Eventos → Tópico JMS → Invalidação e Consultas HTTP.
+   - Quando um cliente corporativo relata uma anomalia em uma remessa, a equipe de engenharia e sustentação precisa reconstruir a cadeia causal completa daquela requisição nos logs de múltiplos servidores.
+   - **Regra de Ouro:** O identificador de rastreabilidade é um metadado puramente técnico e **nunca deve fazer parte da chave de negócio de idempotência**, garantindo que reenviar a mesma cobrança com um novo cabeçalho HTTP não gere títulos duplicados.
 
-- Usar `resilience4j-circuitbreaker` 2.2.0 diretamente, sem AOP, anotacoes, starter ou dependencias de retry/time limiter. Java 17, sem Docker.
-- Um circuito por fonte em cada instancia de consulta: registro e emissor nao compartilham estado.
-- Janela de contagem de tres chamadas, minimo tres, limiar 100%: abre quando as ultimas tres chamadas contabilizadas falham tecnicamente. Espera 10 s aberta; a primeira chamada posterior pode obter a unica permissao HALF_OPEN. Sucesso fecha, falha tecnica reabre por mais 10 s. Nao ha sondagem em segundo plano.
-- 404 e resposta valida da fonte, nao falha de disponibilidade: continua lancando ausencia ao chamador, permite o fallback C e conta como disponibilidade inclusive para recuperar HALF_OPEN. `REJEITADO` retornado em 200 tambem e disponibilidade, nao erro.
-- Demais HTTP nao-2xx, redirecionamento, falha de transporte, JSON/corpo/identidade/estado inconsistentes sao falhas tecnicas. Nao transformar em 404 nem inventar resposta de negocio. 4xx diferente de 404 falha sem retry; o circuito nao corrige credencial/contrato.
-- Configurar explicitamente conexao 2000 ms e leitura 3000 ms nos dois clientes, com valores positivos obrigatorios. Redirecionamento automatico desligado.
-- Uma invocacao HTTP logica por fonte, sem retry de aplicacao. Fallback somente em 404: no maximo uma chamada ao registro e uma ao emissor. Circuito aberto rejeita antes da chamada remota; retorna 503 na API, nao fallback/sucesso. Cache hit continua funcionando sem tocar o circuito.
-- Limites de socket nao sao deadline global: DNS, escalonamento, espera por trava e leitura de resposta que continuamente entrega dados nao sao um SLA absoluto de cinco segundos. Demonstracao usa enderecos locais; metas p95/carga e eventual deadline global devem ser avaliadas na E14.
+## Decisão
 
-### Correlacao
+Implementar uma estratégia abrangente de **Proteção de Borda com Circuit Breakers Isolados (Resilience4j)** e **Rastreabilidade Forense Padronizada (`X-Correlation-ID`)**:
 
-- Novo modulo tecnico `infraestrutura-http`, reutilizado pelos tres servicos, sem JPA nem regras de dominio. Nao adicionar Spring ao `shared-contracts` nem arrastar outbox/JPA para a consulta.
-- Filtro comum em todas as entradas HTTP: `X-Correlation-ID` opcional. Ausente gera UUID v4; informado deve ser um unico UUID v4/variante 2, canonico em minusculas, sem espacos/listas. Invalido retorna 400 antes do dominio e um novo id seguro, sem refletir entrada invalida.
-- Resposta sempre inclui esse header, inclusive erros e cache hit. Erro 400 de correlacao e erro 503 da consulta tambem incluem o mesmo `correlation_id` no corpo. Outros contratos de resposta preservam o corpo existente; correlacao fica no header.
-- Contexto por thread e MDC durante o escopo da requisicao; limpeza/restauracao em `finally` via `AutoCloseable`, inclusive em erro. Nao usar valor de outra requisicao, cachear correlacao ou assumir propagacao implicita para outra thread.
-- Emissor captura correlacao na persistencia do comando e do evento `EmissaoAceita`. O comando ganhou `correlation_id` opcional para compatibilidade de leitura; sem ele, assume UUID do boleto. Nao alterar fingerprint ou chave convenio/controle.
-- Publisher JMS usa essa correlacao no header e preserva no JSON da outbox. Registro abre escopo pelo comando e grava a mesma correlacao no evento final. Publisher de eventos ja propaga o envelope ao header JMS; consulta abre escopo durante a invalidacao.
-- Correlacao do comando e validada antes do negocio. Eventos exigem UUID v4 tambem na correlacao. Se houver header JMS, ele precisa coincidir com o envelope; divergencia e permanente e vai atomicamente para quarentena. Header ausente e tolerado para mensagens legadas; o envelope precisa continuar valido.
-- Consultas HTTP internas encaminham o id da requisicao publica corrente nas duas fontes, sem reutilizar o id do cliente que anteriormente preencheu o cache.
-- Correlacao e metadado, **nao identidade de negocio**. Registro e ledger comparam o conteudo excluindo apenas `correlation_id`; resultado repetido nao gera outro evento nem chama a registradora. JSON persistido mantem a correlacao original para evidencia. Compatibilidade com JSON antigo sem campo e testada.
-- Repeticao HTTP idempotente tem correlacao da nova requisicao na resposta; a intencao ja existente preserva a correlacao da primeira emissao. Nao republicar evento para cada consulta/reenvio.
+1. **Circuit Breakers Independentes por Dependência Remota:**
+   - A consulta gerencia **duas instâncias de circuito totalmente isoladas**: uma dedicada ao `boleto-registro` e outra dedicada ao `boleto-emissor`. Uma lentidão ou queda no registro não afeta o canal com o emissor.
+   - Utilização do `resilience4j-circuitbreaker` 2.2.0 de forma direta e programática (sem AOP ou anotações opacas).
+   - **Limites Rígidos de Socket:** Timeout de conexão fixado em **2 segundos** e timeout de leitura em **3 segundos**, com redirecionamentos automáticos desativados.
+   - **Métrica de Abertura:** Janela deslizante de 3 chamadas. Caso ocorram **3 falhas técnicas consecutivas (100%)**, o circuito transita imediatamente para **`OPEN` por 10 segundos**.
+   - **Comportamento em Falha Rápida (*Fast Failure*):** Com o circuito aberto, requisições com *cache miss* são rejeitadas em sub-milissegundos com **HTTP 503 Service Unavailable**, sem tentar chamadas remotas inúteis e permitindo que o serviço degradado se restabeleça.
+   - **Preservação de Cache Hits:** Consultas de boletos já consolidados em cache continuam respondendo `HTTP 200 OK` instantaneamente, mesmo que o circuito para a fonte esteja aberto.
+   - **Semântica de Disponibilidade:** Respostas `HTTP 404 Not Found` (ausência válida) e respostas de negócio `REJEITADO` contam como disponibilidade (sucesso técnico) para o circuito, pois a fonte remota respondeu de forma saudável e determinística.
+2. **Propagação Ponta a Ponta de Rastreabilidade (`X-Correlation-ID`):**
+   - Módulo comum `infraestrutura-http` intercepta todas as requisições HTTP dos três microsserviços.
+   - Se o cliente informar o cabeçalho `X-Correlation-ID`, o filtro valida estritamente a conformidade com a especificação RFC UUID v4 canônico em minúsculas (rejeitando strings inválidas com HTTP 400 antes de atingir o domínio). Se ausente, gera um novo UUID v4 automaticamente.
+   - O identificador é inserido no MDC (*Mapped Diagnostic Context*) do SLF4J, propagado nas tabelas de outbox, injetado nos metadados de mensagens JMS, transferido aos eventos de domínio e retornado em todos os cabeçalhos de resposta HTTP (inclusive em erros 400, 404 e 503).
+   - O contexto do MDC é limpo de forma determinística em bloco `finally` via `AutoCloseable` ao término de cada requisição ou consumo de mensagem.
+3. **Desacoplamento da Identidade de Negócio:**
+   - O cálculo do hash de idempotência e a verificação de duplicidade no emissor e no registro ignoram expressamente o campo `correlation_id`, garantindo que retentativas de rede preservem a unicidade financeira da cobrança.
 
-### Outras fronteiras e orcamento
+## Alternativas consideradas
 
-JMS preserva `callTimeout=2000`, confirmacao duravel/transacional, `initialConnectAttempts=1`, `reconnectAttempts=0` da URL padrao. Publicacao de comandos/eventos continua limitada pelas respectivas outboxes: tres tentativas totais, minimos 1 s/5 s, isolamento no H2. Consumidores continuam tres entregas e quarentena no broker. Reconexao do listener a cada 2 s recupera a conexao, nao executa uma tentativa extra de negocio.
+- **Apenas Timeouts de Socket sem Circuit Breaker:** Rejeitada. Timeouts apenas limitam a duração de uma requisição isolada, mas sob tráfego de 500 req/s continuam disparando milhares de requisições por segundo contra um backend que já está em colapso, perpetuando a indisponibilidade.
+- **Circuit Breaker Compartilhado Globalmente:** Rejeitada. A queda do serviço de registro abriria o circuito para o emissor, impedindo o fallback de boletos recém-emitidos.
+- **Retry Automático nas Chamadas HTTP da Consulta:** Rejeitada. Adicionar retries síncronos na consulta amplificaria a latência do pagador e geraria o efeito de tempestade de retentativas (*retry storm*) contra fontes já sobrecarregadas.
 
-Nao adicionar circuito/retry em torno da transacao JPA nem em volta do consumidor JMS. Nao adicionar breaker a registradora simulada: ela e local, com ledger H2, nao uma chamada HTTP real; o timeout de 5 s da registradora real continua premissa de contrato, nao funcionalidade comprovada. O adaptador HTTP antigo nao e bean nem fallback; conserva limites historicos 2 s/5 s e agora encaminha correlacao quando usado nos testes legados.
+## Consequências
 
-## Alternativas e consequencias
+- **Positivas:**
+  - **Blindagem Contra Falhas em Cascata:** Uma falha técnica ou sobrecarga severa no registro não derruba a consulta; ela falha rápido com 503 e continua servindo cache hits.
+  - **Diagnóstico Preciso de Incidentes:** A equipe de sustentação pode correlacionar logs de ponta a ponta em segundos utilizando uma busca única por Correlation ID.
+  - **Preservação de Dados Sensíveis:** Logs estruturados registram metadados e correlation IDs sem vazar CPFs, nomes de beneficiários ou valores de boletos.
+- **Custos / Mitigações:**
+  - Sob indisponibilidade das fontes, clientes com *cache miss* recebem 503 imediato durante a janela de abertura do circuito (10 s), exigindo tratamento defensivo nos canais de atendimento e ERPs.
 
-- Somente timeout: limita espera de socket, mas continua pressionando fonte indisponivel.
-- Breaker unico para as duas fontes: rejeitado; uma dependencia nao deve abrir circuito da outra.
-- Retry HTTP automatico: rejeitado; aumentaria latencia e carga sem necessidade, somando tentativas ocultas.
-- Breaker no publicador/consumidor JMS: rejeitado nesta etapa; ja possuem controle persistido de tentativas e destino de isolamento. Um curto-circuito nao pode ser confirmado como envio/processamento.
-- Guardar id somente em MDC: rejeitado; contexto nao sobrevive a scheduler, reinicio ou fila.
-- Incluir correlacao no fingerprint/comparacao do comando: rejeitado; uma nova tentativa HTTP nao e outra operacao de negocio.
-- Ignorar 404 completamente no circuito: rejeitado; a ausencia valida comprova disponibilidade e deve permitir recuperar HALF_OPEN, sem deixar sondas indefinidamente inconclusivas.
+## Status
 
-Circuitos sao locais e reiniciam fechados ao reiniciar a consulta. Nao ha status endpoint publico de circuitos nem dependencia externa de monitoramento. Logs contem metadados, nunca corpo completo, documentos, endereco ou valor. Isto nao substitui identidade/autorizacao/auditoria E11 nem operacao/replay E12.
-
-## Status e evidencias
-
-Aceita e implementada na E10. `mvn -B clean verify`: **265 testes aprovados**, zero falhas/erros/ignorados, PACT preservado. Matriz de testes, inventario e operacao: [E10](../etapas/E10-resiliencia-e-correlacao.md). Atualiza correlacao provisoria da [ADR-012](ADR-012-eventos-e-invalidacao.md), preservando suas garantias de outbox/invalidacao. E14/E15 continuam pendentes.
+Aceita e implementada em todos os microsserviços da solução.

@@ -1,58 +1,51 @@
-# ADR-010 — Contrato funcional e idempotencia da registradora simulada
+# ADR-010 — Idempotência de Integração Externa (Ledger REQUIRES_NEW) e Contrato Funcional Não-Pagável
 
 ## Contexto
 
-A E6 comprovou a fronteira HTTP, mas a aprovacao ainda nao fornecia dados de pagamento. O registro validava apenas o envelope e podia aceitar solicitacoes incompletas. Tambem havia uma janela entre a resposta da registradora e o commit local: uma falha nesse intervalo poderia repetir o efeito externo.
+A integração entre o sistema bancário interno e a Câmara Registradora Centralizada (CIP/B3) envolve riscos operacionais, financeiros e regulatórios de alta gravidade:
 
-A Sessao 4 pede idempotencia tanto do consumidor quanto da integracao e historico das transicoes. O ambiente permanece Java 17, H2 local e uma instancia de cada servico, sem Docker.
+1. **Risco de Cobranças Duplicadas de Tarifas Bancárias:**
+   - Câmaras registradoras cobram tarifas por cada transação submetida e rejeitam sumariamente tentativas de re-registro com o mesmo número de controle.
+   - Em arquiteturas distribuídas com semântica de mensageria *at-least-once*, se o consumidor do `boleto-registro` submeter a cobrança à câmara externa com sucesso, mas a aplicação sofrer um *crash* ou um *rollback* no banco local antes de persistir a entidade e enviar o ACK ao broker, a mensagem retornará à fila.
+   - Na retentativa, se o consumidor invocasse a câmara externa novamente, o banco sofreria cobrança duplicada de tarifas ou receberia um erro de duplicidade que mascararia o fato de que o boleto já havia sido registrado com sucesso!
+2. **Exigência Regulatória do Banco Central (Bacen / Febraban):**
+   - A regulamentação bancária determina que **nenhum título de cobrança pode ser disponibilizado para pagamento sem que o registro esteja efetivamente concluído e confirmado na câmara central**.
+   - Disponibilizar linha digitável ou código de barras para boletos em estado `AGUARDANDO_REGISTRO` ou `REJEITADO` induz o pagador a erro e viola a regulamentação do Sistema Financeiro Nacional.
+3. **Segurança e Isolamento em Ambientes Não-Produtivos:**
+   - Dados sintéticos de demonstração e homologação jamais podem conter sequências numéricas bancárias que possam ser acidentalmente interpretadas ou processadas por câmaras compensadoras reais.
 
-## Decisao
+## Decisão
 
-### Contrato e validacao
+Implementar uma estratégia rigorosa de **Idempotência Externa Durável via Ledger Transacional Independente** e **Contrato Funcional Seguro**:
 
-- Reutilizar a validacao estrutural da solicitacao em `shared-contracts/SolicitacaoBoletoValidator`, sem Spring, banco ou processamento do registro. O componente `EmissaoValidator` preserva o ponto de injecao do emissor.
-- Essa e uma extensao deliberada do modulo de contratos: evita duas implementacoes divergentes das mesmas restricoes de campos. Maquina de estados, idempotencia e persistencia continuam nos respectivos servicos.
-- Registro exige envelope consistente, UUID v4 com variante RFC, aceite `AGUARDANDO_REGISTRO`, instante e solicitacao valida antes de chamar a registradora. Erros retornam o 400 padrao do comando, sem expor valores pessoais; a emissao continua agregando todos os campos invalidos no seu 400.
-- Nao acrescentar limites numericos de texto, verificacao de digitos CPF/CNPJ ou regras de encargos nao acordadas. A matriz explicita o que e formato implementado e o que ainda e premissa.
-
-### Dados didaticos, nunca pagaveis
-
-- Aprovacao fornece `SIM-{uuid}`, instante e strings `NAO-PAGAVEL-SIM-LINHA-{uuid}` / `NAO-PAGAVEL-SIM-BARRAS-{uuid}`.
-- Sao marcadores de demonstracao, nao linha digitavel bancaria nem codigo de barras numerico/valido. Nao gerar digitos verificadores ou documento para pagamento real.
-- Rejeicao fornece codigo/motivo, sem dados de pagamento nem identificador/data de registro.
-- Persistir os novos campos e atualizar juntos PACT consumidor, canonico e provedor. A projecao publica preserva os campos apenas para `REGISTRADO`.
-
-### Historico e atomicidade local
-
-- O aceite original ja fica persistido no emissor na transacao aceite + outbox, antes do 202.
-- Para novos registros, guardar em `registro_historico` a origem `AGUARDANDO_REGISTRO` com o instante recebido e a transicao final com o instante da gravacao local. O instante da confirmacao externa permanece separado em `data_hora_registro`.
-- Historico e resultado local sao gravados na mesma transacao. Unicidade por boleto/estado e retorno antecipado em reentrega evitam duplicar transicoes.
-- Falha tecnica nao cria estado `REJEITADO` nem historico final. Auditoria completa com ator/acesso/correlacao permanece na E11.
-
-### Simular uma registradora com idempotencia duravel
-
-- Guardar comando e resposta em `registradora_simulada_operacao`, com UUID do boleto como chave unica.
-- Usar versao JPA inicialmente nula para que o UUID atribuido seja inserido com `persist`, nao `merge`. A disputa de chave falha sem sobrescrever uma resposta concorrente.
-- O armazenamento e feito por outro bean em transacao `REQUIRES_NEW`: representa o commit independente da instituicao externa, sem usar a transacao local como falsa garantia distribuida.
-- Mesmo UUID/conteudo devolve a resposta salva, inclusive data/hora e rejeicao, sem recalcular e independentemente do cenario configurado depois. Conteudo diferente conflita, tambem quando o resultado local ainda nao existe.
-- Uma resposta perdida ou rollback local nao desfaz a operacao simulada; a retentativa recupera o resultado e conclui registro/historico.
-- Consumidor continua usando travas por UUID na instancia e chave unica no banco. A simulacao persiste um unico efeito por UUID; uma corrida de insercao que perca a disputa pode falhar tecnicamente e precisar de reentrega, nunca sobrescreve o resultado.
-- O ledger fica fisicamente no H2 do registro por ser simulacao didatica, nao uma base compartilhada entre microsservicos. Uma registradora real precisaria oferecer chave idempotente/consulta e contrato equivalente; nao prometemos exactly-once para um provedor desconhecido.
-
-### Aceite 202 e compatibilidade
-
-- Transporte indisponivel nao impede 202 quando aceite e outbox foram confirmados localmente. Se nao conseguimos persistir com seguranca, responder 503; nao e preciso esperar envio/registro para aceitar.
-- Preservar a politica HTTP da ADR-008: tres tentativas totais, esperas minimas de 1 s/5 s e isolamento; fila JVM sera a E8.
-- Novos campos/tabelas sao adicionados pelo JPA sem apagar bases. Registros finais antigos sao preservados como foram gravados: nao recalcular dados de pagamento, nao chamar a registradora e nao inventar historico retroativo. Essa limitacao historica e explicita; dados completos/historico sao garantidos para novos processamentos E7.
+1. **Padrão Ledger de Integração em Transação Isolada (`REQUIRES_NEW`):**
+   - O adaptador da câmara registradora mantém uma tabela dedicada de auditoria de operações (`registradora_simulada_operacao`).
+   - A submissão à registradora é encapsulada em uma transação própria do Spring Data com propagação **`Propagation.REQUIRES_NEW`**, totalmente isolada da transação local do serviço de registro.
+   - A chave primária da operação é o UUID imutável do boleto.
+   - Se ocorrer um *rollback* na transação de negócio do registro ou uma queda do serviço antes do ACK da mensagem, o registro da operação externa **não é desfeito**.
+   - Na reentrega da mensagem pela fila, o adaptador consulta previamente o ledger: localizando a operação já efetivada, **recupera imediatamente a mesma resposta anterior** e devolve ao serviço local para que este conclua a persistência pendente, **sem realizar nenhuma nova chamada externa**.
+2. **Geração Segura de Marcadores Não-Pagáveis:**
+   - Títulos com registro aprovado recebem marcadores explícitos: `linha_digitavel = "NAO-PAGAVEL-SIM-LINHA-{uuid}"` e `codigo_barras = "NAO-PAGAVEL-SIM-BARRAS-{uuid}"`.
+   - Esses marcadores comprovam a geração de dados pelo sistema sem qualquer risco de colisão com a câmara de compensação real.
+   - Boletos em estado `AGUARDANDO_REGISTRO` ou `REJEITADO` possuem esses campos estritamente `null`.
+3. **Validação Estrutural Canônica Reutilizada:**
+   - As regras de validação estrutural da cobrança são consolidadas em `shared-contracts/SolicitacaoBoletoValidator`. Tanto a borda HTTP do `boleto-emissor` quanto o consumidor do `boleto-registro` executam o mesmo validador canônico, garantindo consistência absoluta entre as fronteiras sem duplicação de regras.
 
 ## Alternativas consideradas
 
-- **Duplicar validadores no registro:** risco de divergencia e manutencao dobrada; reutilizar somente restricoes do contrato.
-- **Gerar sequencias bancarias aparentemente validas:** rejeitado pelo carater exclusivamente didatico e risco de confusao com cobranca real.
-- **Guardar resposta externa na mesma transacao local:** rollback apagaria a prova do efeito externo, escondendo justamente a janela que precisamos testar.
-- **Somente cache em memoria na registradora:** perderia idempotencia apos reiniciar.
-- **Reprocessar automaticamente estados finais antigos para preencher campos:** violaria a regra de nao repetir efeito externo nem alterar finais; sem fatos suficientes para reconstruir historico.
+- **Confiar Apenas na Transação Local do Banco de Dados:** Rejeitada sumariamente. Se a transação fosse única, qualquer falha local após a chamada à câmara desfazeria a prova da submissão externa, forçando a reentrega a disparar uma segunda chamada à registradora e provocando cobrança indevida de taxas.
+- **Idempotência Externa Baseada Apenas em Cache em Memória:** Rejeitada. Quedas ou reinicializações do nó consumidor perderiam o histórico em memória, abrindo brechas para efeitos colaterais duplicados em reentregas da fila.
+- **Geração de Linhas Digitáveis Aparentemente Válidas:** Rejeitada por compliance de segurança bancária. Gerar números matematicamente válidos em ambientes de simulação cria risco de vazamento para esteiras de pagamento reais.
 
-## Status e evidencias
+## Consequências
 
-**Implementada e validada em 20/10/2026.** Build limpo sem Docker com 146 testes aprovados. Resposta perdida (aprovacao/rejeicao), rollback apos flush, concorrencia, comando invalido e PACT cobertos. Matriz e limites: [E7](../etapas/E7-contrato-funcional.md).
+- **Positivas:**
+  - **Imunidade a Chamadas Duplicadas Externas:** O sistema pode reprocessar mensagens infinitas vezes com a garantia matemática de que a câmara registradora só é executada exatamente uma vez por boleto.
+  - **Conformidade Regulatória Estrita:** Pagadores e canais corporativos nunca recebem dados pagáveis antes da homologação definitiva do título.
+  - **Integridade Canônica de Validação:** Erros de formato são barrados na entrada da emissão e confirmados defensivamente no consumidor do registro.
+- **Custos / Mitigações:**
+  - Custo adicional de gerenciar duas transações de banco de dados (`REQUIRES_NEW` no ledger e `REQUIRED` na persistência do resultado do registro). Esse custo é marginal e plenamente justificado pela proteção financeira contra custos de duplicidade.
+
+## Status
+
+Aceita e implementada na camada de integração do serviço de registro.

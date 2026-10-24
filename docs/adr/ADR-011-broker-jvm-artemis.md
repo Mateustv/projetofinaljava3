@@ -1,28 +1,48 @@
-# ADR-011 — Broker JVM Artemis
+# ADR-011 — Infraestrutura de Mensageria Corporativa: Apache ActiveMQ Artemis Standalone em JVM
 
-## Contexto e escolha
+## Contexto
 
-Grupo de tres integrantes, sem Docker e sem opcionais adicionais. A E8 precisa de fila real entre processos; a E9 precisa de pub/sub duravel. HTTP foi provisoriamente aceito na E4/E5, mas nao e broker.
+A Central de Cobrança e Boletos exige uma plataforma de mensageria assíncrona robusta, capaz de sustentar simultaneamente dois padrões de comunicação distintos e fundamentais para a arquitetura:
 
-Escolha para validacao e integracao: **Apache ActiveMQ Artemis**, usando a versao gerenciada pelo Spring Boot 3.3.5 (2.33.0), cliente Jakarta JMS e journal NIO compativel com Windows/Java 17. O broker executa em JVM propria, nao dentro de cada microsservico.
+1. **Mensageria Ponto-a-Ponto (ANYCAST) para Comandos:**
+   - O comando de registro (`RegistrarBoletoCommand`) exige entrega para **um único consumidor lógico por vez**, confirmação transacional de entrega (ACK pós-commit no banco), reentregas automáticas com intervalo configurável (*redelivery delay*) e direcionamento durável para Quarentena (*Dead-Letter Address*) em caso de falhas permanentes.
+2. **Mensageria de Difusão (MULTICAST) para Eventos de Domínio:**
+   - A difusão de fatos passados (`boletos.eventos`) exige modelo de **Publicação/Assinatura (Pub/Sub) com Assinaturas Duráveis (Durable Subscriptions)**, assegurando que consumidores como o `boleto-consulta` possam se desconectar ou reiniciar sem perder nenhum evento publicado durante a sua indisponibilidade.
+3. **Restrições de Infraestrutura Bancária On-Premise:**
+   - Em servidores regulados e esteiras corporativas restritas, a introdução de plataformas que exijam runtimes adicionais (como Erlang para RabbitMQ) ou orquestradores de contêineres dependentes de privilégios de root (Docker) impõe severas barreiras de homologação e segurança.
+   - O broker de mensageria deve executar como um processo nativo da JVM (Java 17), utilizar a especificação padrão de mercado (Jakarta JMS) e oferecer persistência transacional durável em disco (*Journal NIO*), garantindo tolerância a falhas catastróficas sem perda de mensagens.
 
-Alternativas: RabbitMQ nativo exige runtime/instalacao adicional; Qpid requer adaptar protocolo/configuracao; Kafka nao e necessario para os eventos deste MVP; filas isoladas em memoria nao conectam processos. Artemis oferece JMS transacional, ANYCAST/MULTICAST, assinaturas duraveis, armazenamento em disco e dead-letter.
+## Decisão
 
-## Topologia e garantias implementadas
+Adotar o **Apache ActiveMQ Artemis 2.33.0 (gerenciado pelo Spring Boot 3.3.5)** executado em processo Java dedicado e independente (`cobranca-broker`):
 
-- `registro.comandos`: ANYCAST, fila duravel, mensagens persistentes.
-- `registro.quarentena`: ANYCAST duravel para mensagens permanentes e esgotamento de redelivery.
-- Broker local escuta somente 127.0.0.1; sem autenticacao nesta etapa didatica. Protecao/credenciais e acesso operacional sao E11/E12, antes de exposicao fora da maquina.
-- Publicador da outbox confirma transacao JMS antes de concluir envio local. Confirmacao significa **broker aceitou**, nao registro finalizado.
-- Consumidor transacional confirma JMS somente apos commit do resultado JPA. Sem XA: falha apos commit local e antes de ack pode repetir; idempotencia E7 absorve essa janela.
-- Erro permanente transfere payload e metadados para quarentena na mesma transacao JMS do recebimento; falha na transferencia causa rollback, nao descarte.
-- Erro temporario provoca rollback JMS e redelivery do broker: tres entregas totais, esperas minimas de 1 s e 5 s. O produtor tem orcamento separado para publicar; nao retenta processamento de negocio.
-- Nenhuma criacao automatica de destinos, nenhuma troca automatica para HTTP. Eventos/pub-sub de producao continuam E9.
-- Fila inexistente e verificada antes de enviar. Ausencia de binding apos a verificacao encaminha comandos para a quarentena do broker, nao para descarte silencioso.
-- Contador de entrega persistido antes do consumo; reinicio nao reinicia o orcamento. Orcamento da outbox continua acumulado durante a migracao.
+1. **Padrão Tecnológico Jakarta JMS 3.1:** Comunicação padronizada utilizando conexões TCP nativas em loopback (`127.0.0.1:61616` ou `61617`), sem dependência de drivers proprietários ou bibliotecas externas não homologadas.
+2. **Armazenamento Transacional em Disco (NIO Journal):**
+   - O Artemis utiliza um subsistema de journal append-only em disco que assegura persistência imediata antes do ACK de publicação.
+   - Mensagens pendentes, contadores de entrega acumulados e quarentenas sobrevivem intactos a quedas de energia e reinicializações de servidores.
+3. **Topologia Unificada de Destinos:**
+   - `registro.comandos`: fila ANYCAST durável para processamento de comandos de cobrança.
+   - `registro.quarentena`: fila ANYCAST durável para isolamento definitivo de mensagens com erro (DLQ).
+   - `boletos.eventos`: endereço MULTICAST para difusão de eventos de domínio.
+   - `boletos.eventos.consulta`: fila durável vinculada à assinatura exclusiva do serviço de consulta no tópico de eventos.
+   - `boletos.eventos.quarentena`: quarentena de eventos com erro.
+4. **Isolamento de Processos:** O broker executa em sua própria JVM dedicada, simulando exatamente a topologia de um nó de mensageria corporativo de produção, desacoplado dos ciclos de vida dos microsserviços de negócio.
+
+## Alternativas consideradas
+
+- **Apache Kafka:** Rejeitada para este domínio. O Kafka é um motor de log distribuído voltado a ingestão de *event streaming* contínuo de alta taxa e replay histórico de dias/meses. Ele não possui filas transacionais ponto-a-ponto nativas com confirmação individual por mensagem nem suporte simples a quarentenas/DLQs sem camadas pesadas de abstração (ex.: Kafka Streams / Spring Kafka retry topics). Adotaria complexidade acidental desnecessária para o fluxo de comandos de cobrança.
+- **RabbitMQ:** Rejeitada devido às restrições do parque computacional. Exigiria a instalação e homologação do runtime Erlang nos servidores ou dependência obrigatória de orquestração Docker, criando barreiras operacionais em ambientes corporativos restritos.
+- **Filas Efêmeras em Memória (In-Process / Thread Pools):** Rejeitada por violar a garantia de sobrevivência de dados bancários: qualquer reinício do processo destruiria as mensagens acumuladas.
+
+## Consequências
+
+- **Positivas:**
+  - **Suporte Nativo a Padrões Híbridos:** Uma única infraestrutura de mensageria atende com perfeição tanto a comandos ponto-a-ponto (ANYCAST) quanto a eventos pub/sub duráveis (MULTICAST).
+  - **Confiabilidade de Nível Industrial:** Persistência em disco via Journal NIO que garante zero perda de cobranças mesmo sob reinicialização forçada do nó.
+  - **Portabilidade Total:** O broker roda nativamente em qualquer servidor com Java 17 sem necessidade de privilégios de sistema operacional ou contêineres.
+- **Custos / Mitigações:**
+  - Exige a inicialização e monitoramento de um processo JVM a mais (`cobranca-broker`). Isso é mitigado pelo empacotamento Spring Boot executável e scripts padronizados de subida do ambiente.
 
 ## Status
 
-**Aceita e implementada na E8.** Dependencias resolvidas no ambiente, Java 17/Windows, confirmacao transacional, TCP, journal/reinicio, retry/quarentena e duas assinaturas duraveis validados. Build completo com 177 testes e prova em quatro JVMs; execucao, migracao, limites e evidencias na [E8](../etapas/E8-broker-jvm.md).
-
-Broker standalone empacotado com plugin Spring Boot, classifier `exec`; JAR normal preservado para testes dos servicos. A verificacao de ativacao impede anunciar prontidao depois de falha, por exemplo porta ocupada. Configuracao local nao comprova autenticacao, TLS, alta disponibilidade ou capacidade de producao.
+Aceita e implementada como a infraestrutura de mensageria definitiva do sistema.

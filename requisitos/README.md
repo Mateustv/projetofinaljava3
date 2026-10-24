@@ -1,46 +1,34 @@
-# Requisitos — Central de Cobrança e Boletos
+# Requisitos — Central de Cobrança e Boletos Bancários
 
-Pacote de **elicitação de requisitos** do projeto final do grupo (BE-JV-010). Segue o mesmo formato do pacote do projeto-guia (`../../projeto-guiado-pix/requisitos`), construído a partir do material original do grupo (`../../../central_cobranca_boletos_elicitacao.docx`), **mantendo todas as decisões já tomadas** e acrescentando o detalhe que faltava para começar a desenvolver.
+Pacote completo de **elicitação de requisitos de negócio e engenharia** da Central de Cobrança e Boletos. Este documento e as transcrições das sessões de descoberta estabelecem a linguagem ubíqua, as dores de negócio dos clientes corporativos, as regras regulatórias do Banco Central (Bacen/CIP) e os critérios funcionais e não-funcionais que guiam todas as decisões arquiteturais do sistema.
 
-## O sistema, em uma frase
+## O Sistema em uma Frase
 
-Uma **Central** que **recebe solicitações de emissão de boletos**, aceita-as de forma assíncrona, **registra o título na instituição registradora** (sistema externo, simulado no projeto) e permite **consultar o estado** do boleto. Ela **não movimenta dinheiro**: pagamento e liquidação ficam fora.
+Uma **plataforma bancária de missão crítica** que recebe solicitações de cobrança em lote de ERPs corporativos, valida e acolhe-as de forma assíncrona (`HTTP 202 Accepted`), **homologa o registro obrigatório perante a Câmara Registradora Centralizada (CIP/B3)** e permite a **consulta massiva de situação e dados pagáveis com altíssima disponibilidade e baixa latência**. O sistema não realiza liquidação financeira imediata (que ocorre dias depois no subsistema de compensação bancária).
 
-## O que tem neste pacote
+## O Contexto do Problema Bancário
 
-| Arquivo | O que é |
+1. **Gargalo de Virada de Mês e Fechamento:** Milhares de empresas conveniadas faturam e emitem boletos simultaneamente nas datas de corte (picos de até 500 requisições/s). A câmara externa não suporta essa vazão sem degradação. A Central precisa atuar como um pulmão de acolhimento assíncrono para nunca travar o faturamento das empresas.
+2. **Risco Jurídico de Cobrança Duplicada:** Reenvios de remessas por oscilação de rede entre o ERP e o banco exigem idempotência radical na entrada e no processamento, evitando emissão de dois boletos para a mesma dívida.
+3. **Conformidade Regulatória (Bacen/Febraban):** Nenhum boleto pode ser disponibilizado para pagamento (linha digitável/código de barras) antes da homologação definitiva do registro na câmara centralizada.
+4. **Assimetria de Tráfego 20:1:** A consulta de boletos tem volumetria 20 vezes maior que a emissão, exigindo isolamento de contexto e cache inteligente para não sobrecarregar as bases de gravação.
+
+## Estrutura do Pacote de Requisitos
+
+| Arquivo | Finalidade e Conteúdo |
 |---|---|
-| `personas.md` | Ficha de cada participante (papel, objetivos, jeito de falar, vieses). |
-| `sessao-1-kickoff.md` | Contexto, problema, escopo, estados. |
-| `sessao-2-emissao.md` | Campos, formatos, idempotência, resposta 202, erros. |
-| `sessao-3-consulta-e-desempenho.md` | Consulta, cache-aside, invalidação, 404 × falha técnica. |
-| `sessao-4-confiabilidade-e-integracoes.md` | Retentativa, DLQ, idempotência, outbox, eventos. |
-| `sessao-5-compliance-e-fechamento.md` | LGPD, auditoria, retenção, fechamento. |
-| `user-stories.md` | Documento compilado pela PO — **primeira fonte de verdade**. |
-| `glossario-e-regras.md` | Glossário, máquina de estados, códigos da registradora, RNFs, premissas e pontos em aberto. |
+| [`personas.md`](personas.md) | Perfil dos envolvidos: Operação Bancária, Arquitetura, Produto, Jurídico e Clientes Corporativos. |
+| [`sessao-1-kickoff.md`](sessao-1-kickoff.md) | Alinhamento executivo: dores do cliente corporativo, escopo do MVP, riscos e máquina de estados. |
+| [`sessao-2-emissao.md`](sessao-2-emissao.md) | Contrato de entrada, campos obrigatórios, regras de convênio, idempotência e resposta 202. |
+| [`sessao-3-consulta-e-desempenho.md`](sessao-3-consulta-e-desempenho.md) | Padrões de consulta, proporção 20:1, estratégia de cache-aside, eliminação do falso 404 e SLAs. |
+| [`sessao-4-confiabilidade-e-integracoes.md`](sessao-4-confiabilidade-e-integracoes.md) | Integração com a registradora, idempotência externa (ledger), outbox, retentativas e quarentena (DLQ). |
+| [`sessao-5-compliance-e-fechamento.md`](sessao-5-compliance-e-fechamento.md) | Delimitação de fases: o que entra no MVP (Fase 1) vs pós-go-live (Fase 2 - liquidação e retenção). |
+| [`user-stories.md`](user-stories.md) | Histórias de usuário consolidadas com critérios estritos de aceite técnico e de negócio. |
+| [`glossario-e-regras.md`](glossario-e-regras.md) | Linguagem ubíqua, máquina de estados, regras de validação estrutural e requisitos não funcionais. |
 
-## Como usar
+## Como Utilizar este Pacote
 
-1. Comece pelas `user-stories.md`.
-2. Recorra às transcrições para entender **por que** cada decisão foi tomada.
-3. **Em divergência, a transcrição prevalece** sobre a user story.
-4. Valores numéricos marcados como **[PREMISSA]** são hipóteses didáticas (o material original os listava como "a validar"). Vocês podem alterá-los, desde que registrem num **ADR**.
-
-## O que foi acrescentado em relação ao documento original
-
-| Lacuna do original | Onde ficou resolvida |
-|---|---|
-| Não havia user stories nem critérios de aceite | `user-stories.md` |
-| Campos listados sem tipo/tamanho/obrigatoriedade | Sessão 2 + `glossario-e-regras.md` §2 |
-| Regras condicionais (juros, multa…) sem detalhe | Sessão 2 + glossário §2 |
-| Corpo dos erros (400/409/404/503) não definido | Sessão 2/3 + glossário §3 |
-| Estados sem transições; sem tratamento de falha técnica | Glossário §1 |
-| Códigos da registradora "a validar" | Glossário §4 (hipótese didática) |
-| Sem números de RNF (latência, pico, TTL, retry, timeout) | Glossário §5 **[PREMISSA]** |
-| Eventos sem payload mínimo | Sessão 4 + glossário §6 |
-| Auditoria/LGPD sem campos nem regras de log | Sessão 5 + glossário §7 |
-| Sem rastreabilidade história → sessão → etapa do projeto | `user-stories.md` (tabela final) |
-
-## Relação com o projeto-guia
-
-Mapeia os padrões do módulo: DDD (emissão · registro · consulta), aceite assíncrono, cache-aside, fila + retry + DLQ, idempotência, outbox/eventos, contrato entre serviços. Detalhes técnicos de implementação ficam em `../ROTEIRO.md`; **este pacote é sobre o quê e o porquê**, não sobre o como.
+1. Inicie pelas [`user-stories.md`](user-stories.md) para entender as capacidades entregues ao negócio.
+2. Recorra às transcrições das sessões para compreender **o porquê de cada decisão de negócio**.
+3. Consulte o [`glossario-e-regras.md`](glossario-e-regras.md) como a fonte de verdade para formatos de dados, respostas de erro e premissas de engenharia.
+4. Veja como essas necessidades de negócio se traduziram em decisões de arquitetura e trade-offs nas [ADRs do projeto](../docs/adr/).

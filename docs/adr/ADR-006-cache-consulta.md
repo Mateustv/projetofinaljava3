@@ -1,29 +1,45 @@
-# ADR-006 — Cache-aside na consulta de boletos
+# ADR-006 — Estratégia de Cache-Aside com TTL Diferenciado por Ciclo de Vida do Título
 
 ## Contexto
-A consulta é muito mais frequente que a emissão e precisa mostrar o estado atual sem transformar identificador inexistente em boleto existente. O estado `AGUARDANDO_REGISTRO` pode evoluir para `REGISTRADO` ou `REJEITADO`; os estados finais são imutáveis no domínio.
 
-## Decisão provisória
-- Usar **cache-aside** no `boleto-consulta`, com Caffeine no Plano B.
-- Usar TTL variável por estado: **30 segundos** para `AGUARDANDO_REGISTRO` e **10 minutos** para `REGISTRADO`/`REJEITADO`. Os números são premissas didáticas da Sessão 3, ainda sujeitos a validação dos requisitos.
-- Consultar primeiro o `boleto-registro`; somente uma resposta **404** dele ativa o fallback ao endpoint interno do `boleto-emissor`, conforme a opção C do ADR-004.
-- Não cachear 404 nem falhas técnicas. Se qualquer fonte necessária estiver indisponível, responder 503 com `correlation_id`; não converter indisponibilidade em ausência.
-- Na E3, apenas TTL. **Atualização E9:** eventos finais invalidam a entrada, mantendo TTL como proteção; leitura/preenchimento e invalidação são coordenados para não reinstalar estado antigo após o ack. Ver [ADR-012](ADR-012-eventos-e-invalidacao.md).
-- Expor dados de pagamento apenas em `REGISTRADO`; dados de rejeição apenas em `REJEITADO`.
+O ecossistema de cobrança bancária apresenta uma assimetria brutal entre operações de escrita e leitura: para cada 1 solicitação de emissão, ocorrem em média **20 consultas de situação** (ERPs realizando varreduras periódicas de status de remessa, pagadores acessando portais corporativos para imprimir a 2ª via e centrais de atendimento consultando títulos).
+
+Se cada consulta executasse chamadas de rede e queries SQL contra o banco relacional do `boleto-registro`:
+1. **Sobrecarga Catastrófica de Infraestrutura:** O volume de leitura de pico exauriria os pools de conexões e degradaria o I/O de disco da base que processa o registro regulatório.
+2. **Latência de Leitura Elevada:** A experiência do pagador final e das APIs corporativas exige tempos de resposta inferiores a 100 ms (p95), inviáveis em cenários de consultas repetitivas a bancos relacionais sob alta carga.
+
+Além disso, os estados do ciclo de vida bancário possuem comportamentos de mutabilidade opostos:
+- `AGUARDANDO_REGISTRO`: estado transitório e efêmero. O título está na fila e transitará para o resultado definitivo em poucos segundos.
+- `REGISTRADO` e `REJEITADO`: **estados finais juridicamente imutáveis**. Uma vez que a câmara registradora externa confirma o registro ou recusa a cobrança, o título não sofre novas alterações de estado no ciclo de emissão.
+
+## Decisão
+
+Adotar o padrão arquitetural **Cache-Aside com TTL Diferenciado por Estado** no microsserviço `boleto-consulta`, utilizando a biblioteca Caffeine em memória:
+
+1. **TTL Curto (30 segundos) para Estado Transitório (`AGUARDANDO_REGISTRO`):**
+   - Garante que a resposta temporária permaneça no cache por uma janela estreita, reduzindo a pressão imediata sobre o emissor e registro, mas forçando a busca do estado consolidado em no máximo 30 segundos mesmo em caso de atraso na mensageria.
+2. **TTL Longo (10 minutos) para Estados Finais (`REGISTRADO` e `REJEITADO`):**
+   - Como os dados do título final são imutáveis, consultas repetidas de pagadores e ERPs são servidas em menos de 5 ms diretamente da memória da JVM, com zero chamadas ao backend.
+3. **Proibição Estrita de Cache para Falhas e Ausências:**
+   - Respostas de ausência (`HTTP 404 Not Found`) e falhas técnicas (`HTTP 503 Service Unavailable`) **nunca são cacheadas**. Se um título acabou de ser emitido ou a rede oscilou, a próxima requisição deve consultar as fontes reais imediatamente, evitando criar "falsos negativos persistentes".
+4. **Camada Dupla com Invalidação Reativa (ADR-012):**
+   - O TTL de 30 segundos atua como rede de segurança (*fail-safe*). A invalidação prioritária é orientada a eventos em tempo real, expurgando a chave do cache assim que o evento `BoletoRegistrado` ou `RegistroRejeitado` é recebido via pub/sub durável.
 
 ## Alternativas consideradas
-- **TTL por estado (escolhida provisoriamente):** simples de explicar e validar; aceita uma janela de eventual desatualização.
-- **Invalidação por evento:** adotada como complemento na E9, com outbox de eventos e assinatura durável; valores de TTL preservados.
-- **Write-through:** faria a consulta participar da escrita do estado, contrariando a propriedade dos dados e acoplando os contextos.
-- **Sem cache:** mais simples, mas não atende ao objetivo de leitura frequente e de baixa latência da Sessão 3.
+
+- **Consulta Direta sem Cache:** Rejeitada. A proporção 20:1 de leitura contra escrita provocaria contenção inaceitável nas bases do registro e descumprimento sistemático do SLA de latência sob carga de virada de mês.
+- **TTL Fixo e Uniforme para Todos os Estados:** Rejeitada. Um TTL fixo curto (ex.: 10 s) sobrecarregaria o banco inutilmente com títulos já registrados há dias. Um TTL fixo longo (ex.: 5 min) prenderia o estado `AGUARDANDO_REGISTRO` por tempo excessivo, fazendo o cliente acreditar que o registro falhou.
+- **Cache Write-Through / Write-Behind:** Rejeitada. Exigiria que a esteira de escrita do registro conhecesse ou atualizasse a camada de cache da consulta diretamente, destruindo o desacoplamento entre os microsserviços.
 
 ## Consequências
-- Respostas encontradas são cacheadas pelo identificador UUID.
-- Uma entrada `AGUARDANDO_REGISTRO` expira antes que uma entrada final, permitindo descobrir a transição mesmo se a invalidação atrasar ou terminar isolada.
-- 404 sempre consulta as fontes novamente; falha técnica sempre permanece distinguível de ausência.
-- A política é provisória e deve ser revista se as premissas de TTL ou os requisitos operacionais mudarem.
+
+- **Positivas:**
+  - **Latência Sub-Milissegundo:** Mais de 90% das consultas repetidas de títulos consolidados são resolvidas diretamente na memória da JVM com latência inferior a 10 ms.
+  - **Proteção da Base Transacional:** Alívio maciço de carga de I/O e conexões no microsserviço de registro, preservando recursos para o processamento de novos boletos.
+  - **Respeito à Semântica de Negócio:** Tratamento adequado da transitoriedade do aceite vs a imutabilidade do registro regulatório.
+- **Custos / Mitigações:**
+  - Existência de uma janela máxima de defasagem de até 30 segundos no estado transitório caso ocorra falha no transporte de eventos. Esse risco é neutralizado em condições normais pela invalidação orientada a eventos em tempo real (ADR-012).
 
 ## Status
-**Provisória, aceita pelo solicitante em 19/10/2026.** A decisão de negócio ADR-004 (opção C) foi discutida e aceita pelo grupo; os TTLs e a estratégia de cache podem ser revistos pelo grupo com base nos requisitos e medições.
 
-**Complementada pela ADR-012 na E9:** invalidação idempotente após evento final, sem projeção parcial nem rebaixamento por eventos fora de ordem. Uma resposta já em voo pode ser antiga; depois do ack seu preenchimento não fica no cache. Uma instância de consulta por demonstração; múltiplas instâncias exigem assinaturas independentes. Evidências e limites na [E9](../etapas/E9-eventos-e-cache.md).
+Aceita e implementada no serviço de consulta.

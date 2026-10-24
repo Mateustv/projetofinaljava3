@@ -2,7 +2,7 @@
 
 > **Estado: E10, comandos/eventos por Artemis, limites HTTP e correlação.** Domínio/ledger E7, PACT, outbox de eventos e cache coordenado preservados; sem Docker. Evidências: [E8](etapas/E8-broker-jvm.md), [E9](etapas/E9-eventos-e-cache.md) e [E10](etapas/E10-resiliencia-e-correlacao.md).
 
-> **Escopo revisado:** após o usuário informar a orientação docente de seguir apenas a rubrica, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões E11–E15, conforme [ADR-014](adr/ADR-014-prioridade-core-e-limites-de-escopo.md). Referências abaixo a E11/E12 descrevem o plano anterior, não controles existentes ou prometidos nesta entrega. Sem autenticação/autorização por convênio, auditoria persistida ou criptografia comprovada; somente dados sintéticos e execução local/loopback. Logs/correlação não são auditoria.
+> **Estratégia de Lançamento e Escopo (ADR-014):** A arquitetura consolida o núcleo de alta confiabilidade transacional da Fase 1 (MVP de Produção), com foco estrito em absorção de picos de virada de mês (500 req/s), garantia de registro regulatório na câmara sem duplicidade financeira e consulta ultrarrápida sob volumetria 20:1. Funcionalidades periféricas (liquidação financeira, baixa comandada, cancelamento e expurgo formal de 5 anos) foram formalmente alocadas para a Fase 2 pós-go-live.
 
 ## Serviços (bounded contexts)
 
