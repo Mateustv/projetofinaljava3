@@ -2,7 +2,7 @@
 
 Atualizado em **20/10/2026**, após o usuário informar a orientação do professor: **seguir apenas os critérios de avaliação**. A referência de entrega é o [brief](brief-alunos.md), com seus nove critérios, não a implementação integral das sessões do tema ou do exemplo PIX.
 
-**Progresso em 21/10/2026:** F1 concluída pelo assistente, com execução real e [sequência de demonstração registrada](docs/etapas/F1-demonstracao-final.md). Restam **F2 e F3**; não foi atribuído ensaio ou validação pessoal aos integrantes.
+**Progresso em 23/10/2026:** F1 concluída pelo assistente, com execução real e [sequência de demonstração registrada](docs/etapas/F1-demonstracao-final.md). **F2 concluída tecnicamente** ([AVALIACAO.md](AVALIACAO.md), [README.md](README.md), [arquitetura.md](docs/arquitetura.md), [guia-do-projeto.md](docs/guia-do-projeto.md), [requisitos/](requisitos/) e [ADRs 001–014](docs/adr/) revisados e alinhados ao problema real de negócio bancário), restando apenas informar os nomes dos outros dois integrantes no cabeçalho de `AVALIACAO.md` e executar a **F3**. Não foi atribuído ensaio ou validação pessoal aos integrantes.
 
 **A implementação técnica necessária já tem evidência. Não há nova funcionalidade obrigatória planejada.** A conferência técnica da demonstração foi concluída na F1; faltam autoavaliação/documentos e preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
 
@@ -22,7 +22,7 @@ Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui 
 
 **Apoio solicitado depois:** o [laboratório web do fluxo real](docs/painel-demonstracao.md) ajuda a estudar/demonstrar os caminhos existentes. A validação automatizada e em quatro JVMs está [registrada](docs/validacao-pendente.md#painel-web-didático--21102026), mas não equivale à execução pessoal/ensaio dos integrantes. Não cria novo critério nem marca F1–F3 como concluídas.
 
-## 2. Etapas finais — F1 concluída; faltam F2 e F3
+## 2. Etapas finais — F1 e F2 concluídas (pendente apenas nomes dos 2 integrantes); falta F3
 
 ### F1 — Conferir a demonstração da versão final — concluída em 21/10/2026
 
@@ -41,15 +41,15 @@ Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui 
 
 O build limpo de 277 testes foi validado na entrega do painel em 21/10/2026; a F1 reexecutou somente as evidências selecionadas, sem alterar código. Reexecutar o build antes da entrega se houver alteração de código, dependências ou contratos; não abrir nova campanha apenas pela documentação.
 
-### F2 — Finalizar os documentos obrigatórios e a autoavaliação
+### F2 — Finalizar os documentos obrigatórios e a autoavaliação — concluída em 23/10/2026 (restando nomes dos 2 integrantes)
 
 Pode ser preparada em paralelo à F1; finalizar as evidências de execução depois dela.
 
-- [ ] Preencher nomes e papéis dos **três integrantes**.
-- [ ] Preencher os níveis de 0–3 dos nove critérios na [autoavaliação](AVALIACAO.md), com evidências localizáveis e limitações, sem atribuir pontos por algo apenas planejado.
-- [ ] Consolidar uso crítico de IA: o que gerou, quais decisões foram humanas, erros encontrados e o que cada integrante realmente validou pessoalmente. Não apresentar testes do assistente como verificações manuais do grupo.
-- [ ] Conferir README, diagrama e ADRs existentes: perfil B, comandos, garantia at-least-once, idempotência, cache e trade-offs. Corrigir somente divergências; não criar ADRs ou documentação sem necessidade.
-- [ ] Manter os pesos do brief (**15/15/12/10/12/13/13/5/5**); registrar a divergência do guia da banca (12/12 nos critérios 6/7, soma 98), sem inventar nota.
+- [ ] Preencher nomes e papéis dos **três integrantes** (Mateus Tavares já preenchido em [AVALIACAO.md](AVALIACAO.md); faltam apenas os nomes dos outros 2 integrantes nos placeholders `<PREENCHER NOME>`).
+- [x] Preencher os níveis de 0–3 dos nove critérios na [autoavaliação](AVALIACAO.md), com evidências localizáveis e limitações, sem atribuir pontos por algo apenas planejado.
+- [x] Consolidar uso crítico de IA: o que gerou, quais decisões foram humanas, erros encontrados e o que cada integrante realmente validou pessoalmente. Não apresentar testes do assistente como verificações manuais do grupo.
+- [x] Conferir README, diagrama e ADRs existentes: perfil B, comandos, garantia at-least-once, idempotência, cache e trade-offs. Corrigir somente divergências; não criar ADRs ou documentação sem necessidade.
+- [x] Manter os pesos do brief (**15/15/12/10/12/13/13/5/5**); registrar a divergência do guia da banca (12/12 nos critérios 6/7, soma 98), sem inventar nota.
 
 **Pronto quando:** todos os critérios têm nível justificado e evidência; não restam campos obrigatórios em branco nem alegações de execução ou validação humana não realizadas.
 
