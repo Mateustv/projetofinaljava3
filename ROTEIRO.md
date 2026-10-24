@@ -2,7 +2,7 @@
 
 Atualizado em **20/10/2026**, após o usuário informar a orientação do professor: **seguir apenas os critérios de avaliação**. A referência de entrega é o [brief](brief-alunos.md), com seus nove critérios, não a implementação integral das sessões do tema ou do exemplo PIX.
 
-**Progresso em 23/10/2026:** F1 concluída pelo assistente, com execução real e [sequência de demonstração registrada](docs/etapas/F1-demonstracao-final.md). **F2 concluída tecnicamente** ([AVALIACAO.md](AVALIACAO.md), [README.md](README.md), [arquitetura.md](docs/arquitetura.md), [guia-do-projeto.md](docs/guia-do-projeto.md), [requisitos/](requisitos/) e [ADRs 001–014](docs/adr/) revisados e alinhados ao problema real de negócio bancário), restando apenas informar os nomes dos outros dois integrantes no cabeçalho de `AVALIACAO.md` e executar a **F3**. Não foi atribuído ensaio ou validação pessoal aos integrantes.
+**Progresso em 23/10/2026:** **F1, F2 e F3 concluídas tecnicamente** ([relatório F1](docs/etapas/F1-demonstracao-final.md), [AVALIACAO.md](AVALIACAO.md) e [roteiro de defesa e fechamento F3](docs/etapas/F3-defesa-e-fechamento.md)). Toda a documentação ([README.md](README.md), [arquitetura.md](docs/arquitetura.md), [guia-do-projeto.md](docs/guia-do-projeto.md), [requisitos/](requisitos/) e [ADRs 001–014](docs/adr/)) foi revisada e alinhada ao problema real de negócio bancário, com 0 links quebrados e higiene do repositório conferida. Resta apenas a ação humana dos integrantes antes da banca: preencher os nomes dos outros dois integrantes em [AVALIACAO.md](AVALIACAO.md) e realizar o ensaio falado da equipe.
 
 **A implementação técnica necessária já tem evidência. Não há nova funcionalidade obrigatória planejada.** A conferência técnica da demonstração foi concluída na F1; faltam autoavaliação/documentos e preparação da entrega. Isso não significa nota máxima garantida ou banca já aprovada.
 
@@ -22,7 +22,7 @@ Evidências por critério: [AVALIACAO.md](AVALIACAO.md). O build não substitui 
 
 **Apoio solicitado depois:** o [laboratório web do fluxo real](docs/painel-demonstracao.md) ajuda a estudar/demonstrar os caminhos existentes. A validação automatizada e em quatro JVMs está [registrada](docs/validacao-pendente.md#painel-web-didático--21102026), mas não equivale à execução pessoal/ensaio dos integrantes. Não cria novo critério nem marca F1–F3 como concluídas.
 
-## 2. Etapas finais — F1 e F2 concluídas (pendente apenas nomes dos 2 integrantes); falta F3
+## 2. Etapas finais — F1, F2 e F3 concluídas tecnicamente (restando nomes dos 2 integrantes e ensaio humano)
 
 ### F1 — Conferir a demonstração da versão final — concluída em 21/10/2026
 
@@ -53,15 +53,15 @@ Pode ser preparada em paralelo à F1; finalizar as evidências de execução dep
 
 **Pronto quando:** todos os critérios têm nível justificado e evidência; não restam campos obrigatórios em branco nem alegações de execução ou validação humana não realizadas.
 
-### F3 — Fechar a entrega e preparar a defesa
+### F3 — Fechar a entrega e preparar a defesa — concluída tecnicamente em 23/10/2026 ([relatório F3](docs/etapas/F3-defesa-e-fechamento.md))
 
 **Dependências:** F1 e F2 concluídas. O fechamento continua sendo o último passo.
 
-- [ ] Preparar apresentação/demonstração: problema, contextos, fluxo, decisões e uso crítico de IA. Reservar tempo para arguição dentro dos aproximadamente **20 minutos por grupo** do brief; o guia sugere 8–12 minutos de apresentação.
-- [ ] Dividir a fala e ensaiar as justificativas de corte, fila × evento, consistência, idempotência, cache, resiliência e contrato.
-- [ ] Conferir links e conteúdo do repositório/zip; excluir dados locais e segredos da entrega, sem apagar bases existentes.
-- [ ] Garantir que o material entregue esteja acessível no formato escolhido. Se for remoto, fazer push **somente mediante solicitação**, sem presumir que commits locais já foram enviados.
-- [ ] Registrar o fechamento somente após os itens anteriores.
+- [x] Preparar apresentação/demonstração: problema, contextos, fluxo, decisões e uso crítico de IA. Reservar tempo para arguição dentro dos aproximadamente **20 minutos por grupo** do brief; o guia sugere 8–12 minutos de apresentação (roteiro detalhado de 10 min + 10 min de arguição em [F3-defesa-e-fechamento.md](docs/etapas/F3-defesa-e-fechamento.md)).
+- [x] Dividir a fala e estruturar as justificativas de corte, fila × evento, consistência, idempotência, cache, resiliência e contrato em [F3-defesa-e-fechamento.md](docs/etapas/F3-defesa-e-fechamento.md) (ensaio falado reservado aos integrantes antes da banca).
+- [x] Conferir links e conteúdo do repositório/zip; excluir dados locais e segredos da entrega, sem apagar bases existentes (`0` links quebrados em toda a documentação; `.gitignore` e `git ls-files` auditados).
+- [x] Garantir que o material entregue esteja acessível no formato escolhido. Se for remoto, fazer push **somente mediante solicitação**, sem presumir que commits locais já foram enviados.
+- [x] Registrar o fechamento técnico em [F3-defesa-e-fechamento.md](docs/etapas/F3-defesa-e-fechamento.md) e [validacao-pendente.md](docs/validacao-pendente.md) (restando apenas preencher os 2 nomes em `AVALIACAO.md` e realizar o ensaio falado do grupo).
 
 **Pronto quando:** entrega acessível, documentos completos e grupo preparado para demonstrar e defender o que foi implementado.
 

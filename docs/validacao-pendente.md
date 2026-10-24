@@ -2,7 +2,15 @@
 
 > Os comandos abaixo foram executados na raiz de `projeto-final-grupo`. Os passos já validados estão marcados `[x]`.
 
-> **Planejamento vigente em 20/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Aquela reorganização foi somente documental, com links/whitespace conferidos; sua evidência era o build limpo com 265 testes da revisão `b11fad9`. Revalidações posteriores estão abaixo; **F1 concluída em 21/10/2026, F2/F3 pendentes**.
+> **Planejamento vigente em 23/10/2026:** após o usuário informar a orientação docente de seguir apenas os critérios de avaliação, o [roteiro F1–F3](../ROTEIRO.md) substitui os portões anteriores. Referências históricas abaixo a E11/E12/E14/E15 não criam tarefas adicionais: não há etapa de backup completo, carga ou compliance a cumprir. Aquela reorganização foi somente documental, com links/whitespace conferidos; sua evidência era o build limpo com 265 testes da revisão `b11fad9`. Revalidações posteriores estão abaixo; **F1 concluída em 21/10/2026; F2 e F3 concluídas tecnicamente em 23/10/2026** (restando apenas preencher os 2 nomes em `AVALIACAO.md` e realizar o ensaio falado do grupo).
+
+## F2 e F3 — Documentação de negócio, autoavaliação, roteiro de defesa e fechamento — 23/10/2026
+
+- [x] **F2 ([AVALIACAO.md](../AVALIACAO.md)):** Níveis `0–3` preenchidos e justificados para os 9 critérios do [brief](../brief-alunos.md) (pesos `15/15/12/10/12/13/13/5/5 = 100`, registrando a divergência `12/12` soma 98 do guia da Aula 9), com mapa de localização de evidências em código, configurações, testes e ADRs, além da seção de reflexão crítica sobre o uso de IA (separando geração de commodity, julgamento arquitetural humano e 4 bugs reais detectados/corrigidos).
+- [x] **Alinhamento ao problema real de negócio bancário:** [README.md](../README.md), [arquitetura.md](arquitetura.md), [guia-do-projeto.md](guia-do-projeto.md), [requisitos/](../requisitos/) e [ADRs 001–014](adr/) revisados para ancorar cada escolha nas 4 pressões do domínio (pico de fim de mês de 500 req/s, risco de cobrança duplicada, trava regulatória Bacen/CIP e leitura 20:1).
+- [x] **F3 ([F3-defesa-e-fechamento.md](etapas/F3-defesa-e-fechamento.md)):** Roteiro de apresentação (10 min de exposição + 10 min de arguição), divisão de fala entre os 3 integrantes e respostas-modelo de Nível III (*escolha + sacrifício + contexto*).
+- [x] **Conferência de links e higiene do repositório:** Varredura automatizada em todos os arquivos `.md` do repositório (`0` links quebrados); `.gitignore` e `git ls-files` auditados (nenhum banco local `data/`, `target/`, log ou segredo versionado; bases locais preservadas na máquina). Código Java e suíte de **277 testes** inalterados.
+- [ ] **Ação exclusiva dos integrantes antes da banca:** Preencher os nomes dos Integrantes 2 e 3 em [AVALIACAO.md](../AVALIACAO.md) e realizar o ensaio falado da equipe.
 
 ## F1 — Demonstração final — 21/10/2026
 
