@@ -21,11 +21,13 @@ Grandes empresas clientes (ERPs corporativos, faturadores industriais e platafor
 Se a emissão bancária chamasse síncronamente a câmara registradora centralizada (CIP/B3), a instabilidade externa reteria as threads do banco, provocando timeouts em cascata e paralisando o faturamento das empresas. Pior: reenvios automáticos por oscilação de rede geravam cobranças duplicadas para a mesma nota fiscal, gerando protestos indevidos e pesados litígios jurídicos contra a instituição. Além disso, as normas do Banco Central proíbem expressamente a liberação de linha digitável pagável antes da homologação definitiva do título.
 
 A Central de Cobrança e Boletos resolve esse problema através de:
-1. **Acolhimento Assíncrono Desacoplado (`202 Accepted`):** Retorno imediato ao ERP em menos de 100 ms com *Transactional Outbox* para garantir que nenhuma cobrança seja perdida;
+
+1. **Acolhimento Assíncrono Desacoplado (`202 Accepted`):** Retorno imediato ao ERP em menos de 100 ms com _Transactional Outbox_ para garantir que nenhuma cobrança seja perdida;
 2. **Registro Assíncrono com Idempotência Radical:** Amortecimento de picos via fila durável Artemis e Ledger transacional independente (`REQUIRES_NEW`), protegendo o banco contra custos de chamadas duplicadas à câmara externa;
 3. **Consulta de Ultra-Baixa Latência (Tráfego 20:1):** Borda de leitura desacoplada com cache-aside Caffeine, TTL diferenciado e invalidação reativa em tempo real orientada a eventos de domínio.
 
 ## Arquitetura (resumo)
+
 3 serviços com bases segregadas + `shared-contracts` + infraestrutura reutilizável `eventos-outbox`/`infraestrutura-http` + broker JVM em processo próprio. Ver [`docs/arquitetura.md`](docs/arquitetura.md) e [`docs/adr/`](docs/adr/).
 
 ## Onde encontrar as classes
@@ -35,31 +37,42 @@ Nos três serviços, o código está separado por tipo de classe dentro de `src/
 Para estudar: comece pelo controller, siga para o service e depois para repository/model ou client/publisher. A consulta não tem entidades/repositórios; seus clientes HTTP ficam em `clients`. Contratos entre serviços continuam em `shared-contracts`, sem duplicação nos serviços.
 
 ## Perfil de execução
+
 **Plano B (pura-JVM, sem Docker)** — definitivo para a entrega. Comandos e eventos usam **Apache ActiveMQ Artemis 2.33.0**, Jakarta JMS e armazenamento NIO. E9 adiciona pub/sub durável, outbox nos dois produtores e invalidação de cache. Não há fallback HTTP automático. Ver [ADR-011](docs/adr/ADR-011-broker-jvm-artemis.md), [operação/migração E8](docs/etapas/E8-broker-jvm.md) e [E9](docs/etapas/E9-eventos-e-cache.md). Perfis A/C no Maven são referências conceituais, não infraestruturas operacionais.
 
 ## Como rodar
+
 Requer JDK 17 e Maven, na rede com acesso ao Nexus corporativo. Na raiz:
+
 ```powershell
 mvn -B clean verify
 ```
+
 Abra **quatro terminais inicialmente na raiz do projeto**:
 
 Terminal 1 — broker, porta 61616:
+
 ```powershell
 Set-Location .\cobranca-broker
 java -jar .\target\cobranca-broker-0.0.1-SNAPSHOT-exec.jar
 ```
+
 Terminal 2 — registro:
+
 ```powershell
 Set-Location .\boleto-registro
 java -jar .\target\boleto-registro-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1
 ```
+
 Terminal 3 — emissor:
+
 ```powershell
 Set-Location .\boleto-emissor
 java -jar .\target\boleto-emissor-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1
 ```
+
 Terminal 4 — consulta:
+
 ```powershell
 Set-Location .\boleto-consulta
 java -jar .\target\boleto-consulta-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1
@@ -84,6 +97,7 @@ Novos aprovados têm `linha_digitavel=NAO-PAGAVEL-SIM-LINHA-{uuid}` e `codigo_ba
 O registro valida a solicitação antes de chamar a registradora e grava histórico mínimo de novos resultados. A registradora simulada mantém um ledger por UUID em transação independente para recuperar a mesma resposta após perda de resposta/rollback local. Finais antigos continuam como originalmente persistidos, sem reprocessamento ou histórico retroativo inventado. Matriz, garantias e limites: [E7](docs/etapas/E7-contrato-funcional.md) / [ADR-010](docs/adr/ADR-010-contrato-funcional-e-idempotencia-registradora.md).
 
 ## Resiliência de comandos (E5 → E8)
+
 A outbox mantém **três tentativas totais de publicação**, com esperas mínimas de 1 s e 5 s; esgotamento preserva o comando no H2, sem reenvio automático. `GET http://localhost:8081/interno/outbox/falhas` lista até 20 isolamentos do **produtor**, somente com metadados; não lista a DLQ do broker.
 
 No registro, falha temporária reverte a transação JMS: o broker faz até **três entregas totais**, com esperas mínimas de 1 s e 5 s, e encaminha o esgotamento para `registro.quarentena`. JSON/envelope/conflito inválido vai imediatamente à quarentena, atomicamente com o ack original. Não há sobreposição de retry de negócio no produtor: publicar no broker e processar no registro são fronteiras distintas.
@@ -91,18 +105,6 @@ No registro, falha temporária reverte a transação JMS: o broker faz até **tr
 Rejeição de negócio é persistida como `REJEITADO` e confirma o processamento; não é falha de transporte. No serviço de registro, a variável `REGISTRADORA_CENARIO` permite simular `APROVAR` (padrão), `REJEITAR` ou `INDISPONIVEL`. Histórico HTTP: [E5](docs/etapas/E5-resiliencia-outbox.md); regras vigentes: [E8](docs/etapas/E8-broker-jvm.md).
 
 Há DLQ Artemis, não RabbitMQ. O modelo permite reentregas e exige idempotência; o limite de retry não garante registro eventual durante falhas prolongadas. **Não há endpoint de replay**; reprocessamento restrito/auditado ficou fora da entrega atual, não será apresentado como feito na E12. Broker sem autenticação/TLS; APIs sem autorização por convênio. **Uso exclusivamente local, com dados sintéticos e serviços em loopback; não expor em rede nem usar dados reais.** Criptografia de armazenamento não foi verificada/ativada. [Limites de escopo](docs/adr/ADR-014-prioridade-core-e-limites-de-escopo.md).
-
-## Documentação do processo
-- [`ROTEIRO.md`](ROTEIRO.md) — F1 concluída; pendências F2/F3, substituindo o plano E11–E15; fechamento por último
-- [F1 — demonstração final](docs/etapas/F1-demonstracao-final.md) — resultados reais e sequência curta para apresentar
-- [`docs/etapas/`](docs/etapas/) — o que foi feito e o que aprendemos em cada etapa (inclui [E2](docs/etapas/E2-idempotencia.md), [E3](docs/etapas/E3-consulta-e-cache.md), [E4](docs/etapas/E4-comunicacao-assincrona.md) e [E5](docs/etapas/E5-resiliencia-outbox.md))
-- [`docs/validacao-pendente.md`](docs/validacao-pendente.md) — resultados e testes manuais pendentes
-- [`AVALIACAO.md`](AVALIACAO.md) — auto-avaliação por critério
-- [E6 — contratos PACT](docs/etapas/E6-contratos-pact.md) — execução, atualização do artefato e evidências positivas/negativas
-- [E7 — contrato funcional](docs/etapas/E7-contrato-funcional.md) — matriz de campos, dados não pagáveis, histórico e recuperação idempotente
-- [E8 — broker JVM](docs/etapas/E8-broker-jvm.md) — execução, migração, retry/quarentena e evidências em processos separados
-- [E9 — eventos e cache](docs/etapas/E9-eventos-e-cache.md) — três eventos mínimos, outbox local atômica, assinaturas independentes e invalidação coordenada com leitura
-- [E10 — resiliência e correlação](docs/etapas/E10-resiliencia-e-correlacao.md) — limites por fronteira, circuitos independentes, header validado e propagação persistida
 
 ## Eventos e cache (E9)
 
@@ -119,4 +121,5 @@ Os três serviços aceitam `X-Correlation-ID` opcional: ausente gera UUID v4; in
 Não há novo processo ou variável obrigatória. Na consulta, `integracoes.connect-timeout-ms` e `integracoes.read-timeout-ms` aceitam apenas valores positivos. Limites de socket não são deadline global nem prova de p95; registradora continua simulada/local. Inventário, exemplo de header, compatibilidade com comandos antigos e evidências: [E10](docs/etapas/E10-resiliencia-e-correlacao.md) / [ADR-013](docs/adr/ADR-013-resiliencia-e-correlacao.md).
 
 ## Uso de IA
+
 Ver `AVALIACAO.md` §8 e `docs/etapas/`.
